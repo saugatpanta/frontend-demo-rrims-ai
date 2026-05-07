@@ -1,6 +1,7 @@
 import { Bell, KeyRound, LockKeyhole, MonitorCog, RefreshCw, ShieldCheck } from "lucide-react";
+import QRCode from "qrcode";
 import type { ReactNode } from "react";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import { authApi, settingsApi } from "../api/services";
 import { PageHeader } from "../components/PageHeader";
@@ -58,10 +59,46 @@ function MfaPanel({
   const [code, setCode] = useState("");
   const [enrollment, setEnrollment] = useState<Record<string, unknown> | null>(null);
   const [disableCode, setDisableCode] = useState("");
+  const [qrDataUrl, setQrDataUrl] = useState("");
+  const [qrError, setQrError] = useState("");
 
   const status = (data?.status ?? {}) as Record<string, unknown>;
   const enabled = Boolean(status.enabled ?? status.enabledAt);
   const enrollmentId = String(enrollment?.enrollmentId ?? data?.enrollmentId ?? "");
+  const setup = useMemo(
+    () => ((enrollment?.setup as Record<string, unknown> | undefined) ?? {}),
+    [enrollment],
+  );
+  const secret = String(setup.secret ?? "");
+  const otpAuthUrl = String(setup.otpauthUrl ?? "");
+
+  useEffect(() => {
+    let cancelled = false;
+    setQrDataUrl("");
+    setQrError("");
+
+    if (!otpAuthUrl) return;
+
+    QRCode.toDataURL(otpAuthUrl, {
+      errorCorrectionLevel: "M",
+      margin: 2,
+      scale: 6,
+      color: {
+        dark: "#0f172a",
+        light: "#ffffff",
+      },
+    })
+      .then((url) => {
+        if (!cancelled) setQrDataUrl(url);
+      })
+      .catch(() => {
+        if (!cancelled) setQrError("Could not generate the QR code. Use the setup key instead.");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [otpAuthUrl]);
 
   async function enable() {
     try {
@@ -127,9 +164,24 @@ function MfaPanel({
       </div>
       {enrollment ? (
         <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
-          <p className="text-sm font-bold text-ink-900">Authenticator secret</p>
-          <code className="mt-2 block break-all rounded-md bg-white p-3 text-xs text-ink-700">{String(((enrollment.setup as Record<string, unknown> | undefined)?.secret) ?? "Secret returned after enrollment")}</code>
-          <p className="mt-3 text-xs text-ink-500">otpauth: {String(((enrollment.setup as Record<string, unknown> | undefined)?.otpauthUrl) ?? "Not returned")}</p>
+          <div className="grid gap-4 md:grid-cols-[180px_1fr]">
+            <div className="rounded-md border border-slate-200 bg-white p-3">
+              {qrDataUrl ? (
+                <img src={qrDataUrl} alt="Authenticator app QR code" className="h-36 w-36" />
+              ) : (
+                <div className="grid h-36 w-36 place-items-center rounded-md bg-slate-100 p-3 text-center text-xs font-semibold text-ink-500">
+                  {qrError || "Generating QR..."}
+                </div>
+              )}
+            </div>
+            <div>
+              <p className="text-sm font-bold text-ink-900">Authenticator setup key</p>
+              <code className="mt-2 block break-all rounded-md bg-white p-3 text-xs text-ink-700">
+                {secret || "Secret returned after enrollment"}
+              </code>
+              <p className="mt-3 break-all text-xs text-ink-500">otpauth: {otpAuthUrl || "Not returned"}</p>
+            </div>
+          </div>
           {Array.isArray(enrollment.recoveryCodes) ? <pre className="mt-3 rounded-md bg-slate-950 p-3 text-xs text-white">{enrollment.recoveryCodes.join("\n")}</pre> : null}
         </div>
       ) : null}

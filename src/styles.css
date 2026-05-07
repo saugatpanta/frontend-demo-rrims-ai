@@ -22,8 +22,10 @@ body {
   margin: 0;
   min-width: 320px;
   background:
-    linear-gradient(180deg, rgba(15, 118, 110, 0.06), rgba(248, 250, 252, 0) 240px),
-    #eef2f6;
+    linear-gradient(180deg, rgba(15, 118, 110, 0.07), rgba(37, 99, 235, 0.035) 300px, rgba(248, 250, 252, 0) 620px),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.035), rgba(248, 250, 252, 0) 42%),
+    #edf2f7;
+  color: #111827;
 }
 
 button,
@@ -37,9 +39,43 @@ button {
   white-space: nowrap;
 }
 
+button,
+a,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+input,
+select,
+textarea {
+  accent-color: #0f766e;
+}
+
+.glass-surface {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.82)),
+    rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(18px);
+}
+
+.surface-grid {
+  background-image:
+    linear-gradient(rgba(15, 23, 42, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.045) 1px, transparent 1px);
+  background-size: 32px 32px;
+  background-position: -1px -1px;
+}
+
 ::selection {
   background: #ccfbf1;
   color: #111827;
+}
+
+:focus-visible {
+  outline: 2px solid #14b8a6;
+  outline-offset: 2px;
 }
 
 ::-webkit-scrollbar {
