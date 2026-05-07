@@ -2,7 +2,7 @@ import { Mic, Paperclip, PhoneCall, RefreshCw, Send, Square } from "lucide-react
 import { useEffect, useRef, useState } from "react";
 
 import { callsApi, chatApi, unwrapList, type GenericRecord } from "../api/services";
-import { Button, EmptyState, Field, inputClass, Panel, SkeletonRows } from "./ui";
+import { Avatar, Button, EmptyState, Field, inputClass, Panel, SkeletonRows } from "./ui";
 import { useAsync } from "../hooks/useAsync";
 import { dateLabel, titleCase } from "../utils/format";
 import { playTone } from "../utils/sound";
@@ -148,13 +148,16 @@ export function CommunicationConsole({
         ) : null}
         {rows.map((message) => {
           const metadata = (message.metadata ?? {}) as Record<string, unknown>;
+          const sender = (message.sender as GenericRecord | undefined) ?? {};
+          const senderName = String(sender.fullName ?? sender.username ?? message.senderName ?? "Participant");
           return (
             <div key={String(message.id)} className="rounded-md border border-slate-200 bg-white p-3 shadow-sm">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm font-black text-ink-900">
-                  {String((message.sender as GenericRecord | undefined)?.fullName ?? message.senderName ?? "Participant")}
-                </p>
-                <span className="text-xs font-semibold text-ink-500">{dateLabel(String(message.createdAt ?? ""))}</span>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <Avatar userId={sender.id ? String(sender.id) : undefined} name={senderName} size="sm" />
+                  <p className="truncate text-sm font-black text-ink-900">{senderName}</p>
+                </div>
+                <span className="shrink-0 text-xs font-semibold text-ink-500">{dateLabel(String(message.createdAt ?? ""))}</span>
               </div>
               <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-ink-700">{String(message.content ?? "")}</p>
               {message.type ? <p className="mt-2 text-xs font-black uppercase tracking-[0.12em] text-civic-700">{titleCase(String(message.type))}</p> : null}

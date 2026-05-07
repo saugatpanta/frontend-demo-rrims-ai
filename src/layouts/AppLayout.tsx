@@ -31,7 +31,7 @@ import { PropsWithChildren, useEffect, useMemo, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../context/AuthContext";
-import { Button } from "../components/ui";
+import { Avatar, Button } from "../components/ui";
 import { canAccess, governmentRoles, managementRoles, type AccessRule } from "../auth/access";
 import type { User } from "../api/types";
 
@@ -209,9 +209,12 @@ export function AppLayout({ children }: PropsWithChildren) {
               <Siren className="h-4 w-4" />
               Incident
             </Button>
-            <div className="hidden text-right sm:block">
-              <p className="text-sm font-semibold text-ink-900">{user?.fullName ?? user?.username ?? "Operator"}</p>
-              <p className="text-xs text-ink-500">{user?.role ?? "Authenticated"}</p>
+            <div className="hidden items-center gap-3 sm:flex">
+              <Avatar userId={user?.id} name={user?.fullName ?? user?.username} size="md" />
+              <div className="text-right">
+                <p className="text-sm font-semibold text-ink-900">{user?.fullName ?? user?.username ?? "Operator"}</p>
+                <p className="text-xs text-ink-500">{user?.role ?? "Authenticated"}</p>
+              </div>
             </div>
             <Button variant="secondary" onClick={handleLogout}>
               <LogOut className="h-4 w-4" />

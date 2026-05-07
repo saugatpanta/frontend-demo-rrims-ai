@@ -15,7 +15,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { geographyApi, profileApi } from "../api/services";
 import type { SelectOption, User } from "../api/types";
 import { PageHeader } from "../components/PageHeader";
-import { Badge, Button, Field, inputClass, Panel } from "../components/ui";
+import { Avatar, Badge, Button, Field, inputClass, Panel } from "../components/ui";
 import { useAuth } from "../context/AuthContext";
 import { useAsync } from "../hooks/useAsync";
 import { dateLabel } from "../utils/format";
@@ -166,18 +166,7 @@ export function ProfilePage() {
         <div className="space-y-6">
           <Panel>
             <div className="flex items-start gap-4">
-              <div className="relative grid h-24 w-24 shrink-0 place-items-center overflow-hidden rounded-lg bg-civic-50 text-4xl font-black text-civic-700">
-                {shown?.id ? (
-                  <img
-                    src={`${import.meta.env.VITE_API_BASE_URL}/profile/avatar/${shown.id}`}
-                    className="absolute inset-0 h-full w-full object-cover"
-                    onError={(event) => {
-                      event.currentTarget.style.display = "none";
-                    }}
-                  />
-                ) : null}
-                {(shown?.fullName ?? shown?.username ?? "R").slice(0, 1)}
-              </div>
+              <Avatar userId={shown?.id} name={shown?.fullName ?? shown?.username} size="xl" />
               <div className="min-w-0">
                 <h2 className="text-2xl font-black text-ink-900">{shown?.fullName ?? "Operator"}</h2>
                 <div className="mt-2 flex flex-wrap gap-2">

@@ -1,7 +1,9 @@
 import clsx from "clsx";
 import type { ButtonHTMLAttributes, PropsWithChildren, ReactNode } from "react";
+import { useState } from "react";
 import { FileSearch, Loader2 } from "lucide-react";
 
+import { apiConfig } from "../api/client";
 import { statusTone, titleCase } from "../utils/format";
 
 export function Button({
@@ -132,5 +134,47 @@ export function SkeletonRows({ count = 4 }: { count?: number }) {
         <div key={index} className="h-12 animate-pulse rounded-md bg-gradient-to-r from-slate-100 via-white to-slate-100" />
       ))}
     </div>
+  );
+}
+
+export function Avatar({
+  userId,
+  name,
+  size = "md",
+  className,
+}: {
+  userId?: string | null;
+  name?: string | null;
+  size?: "sm" | "md" | "lg" | "xl";
+  className?: string;
+}) {
+  const [failed, setFailed] = useState(false);
+  const sizes = {
+    sm: "h-8 w-8 text-xs",
+    md: "h-10 w-10 text-sm",
+    lg: "h-14 w-14 text-lg",
+    xl: "h-24 w-24 text-4xl",
+  };
+  const initial = (name ?? "R").trim().slice(0, 1).toUpperCase() || "R";
+  const src = userId ? `${apiConfig.baseUrl}/profile/avatar/${userId}` : "";
+
+  return (
+    <span
+      className={clsx(
+        "relative grid shrink-0 place-items-center overflow-hidden rounded-lg bg-civic-50 font-black text-civic-700 shadow-sm ring-1 ring-civic-100",
+        sizes[size],
+        className,
+      )}
+    >
+      {src && !failed ? (
+        <img
+          src={src}
+          alt={name ? `${name} profile picture` : "Profile picture"}
+          className="absolute inset-0 h-full w-full object-cover"
+          onError={() => setFailed(true)}
+        />
+      ) : null}
+      <span className={clsx(src && !failed && "opacity-0")}>{initial}</span>
+    </span>
   );
 }
