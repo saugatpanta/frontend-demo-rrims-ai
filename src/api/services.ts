@@ -131,6 +131,12 @@ export const workOrdersApi = {
 export const usersApi = {
   list: (query?: Record<string, string | number | undefined>) =>
     api<Paginated<User> | User[]>("/users", { query }),
+  create: (body: Record<string, unknown>) =>
+    api<User>("/users", { method: "POST", body: JSON.stringify(body) }),
+  action: (id: string, action: string, body: Record<string, unknown>) =>
+    api<User>(`/users/${id}/${action}`, { method: "POST", body: JSON.stringify(body) }),
+  patch: (id: string, body: Record<string, unknown>) =>
+    api<User>(`/users/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
 };
 
 export const profileApi = {

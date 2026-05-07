@@ -54,6 +54,7 @@ export function ResourcePage({
 }: ResourcePageProps) {
   const [search, setSearch] = useState("");
   const [refresh, setRefresh] = useState(0);
+  const [actionMessage, setActionMessage] = useState("");
   const records = useAsync(() => moduleApi.list<GenericRecord>(path, { limit: 25, search }), [refresh]);
   const rows = records.data ? unwrapList<GenericRecord>(records.data) : [];
 
@@ -92,6 +93,7 @@ export function ResourcePage({
             <p className="mt-1 max-w-3xl text-sm leading-6 text-ink-500">{description}</p>
           </div>
           {records.error ? <p className="rounded-md bg-amber-50 px-3 py-2 text-sm font-medium text-amber-700">{records.error.message}</p> : null}
+          {actionMessage ? <p className="rounded-md bg-civic-50 px-3 py-2 text-sm font-semibold text-civic-800">{actionMessage}</p> : null}
         </div>
         <form onSubmit={submit} className="flex flex-col gap-3 sm:flex-row">
           <div className="relative flex-1">
@@ -117,7 +119,16 @@ export function ResourcePage({
                 cell: (row: GenericRecord) => (
                   <div className="flex flex-wrap gap-2">
                     {actions.map((action) => (
-                      <Button key={action.label} variant="secondary" onClick={async () => { await action.run(row); setRefresh((value) => value + 1); }}>
+                      <Button key={action.label} variant="secondary" onClick={async () => {
+                        setActionMessage("");
+                        try {
+                          await action.run(row);
+                          setActionMessage(`${titleCase(action.label)} completed.`);
+                          setRefresh((value) => value + 1);
+                        } catch (error) {
+                          setActionMessage(error instanceof Error ? error.message : "Action failed.");
+                        }
+                      }}>
                         {titleCase(action.label)}
                       </Button>
                     ))}

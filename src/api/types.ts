@@ -16,6 +16,7 @@ export type User = {
   phone: string;
   email?: string | null;
   role: Role | string;
+  status?: string;
   permissions?: string[];
   isPhoneVerified?: boolean;
   isEmailVerified?: boolean;
