@@ -141,6 +141,13 @@ export const reportsApi = {
 export const workOrdersApi = {
   list: (query?: Record<string, string | number | undefined>) =>
     api<Paginated<WorkOrder> | WorkOrder[]>("/work-orders", { query }),
+  communications: (id: string) =>
+    api<Record<string, unknown>>(`/work-orders/${id}/communications`),
+  ensureCommunication: (id: string, initialMessage?: string) =>
+    api<Record<string, unknown>>(`/work-orders/${id}/communications`, {
+      method: "POST",
+      body: JSON.stringify({ initialMessage }),
+    }),
   start: (id: string, note?: string) =>
     api(`/work-orders/${id}/start`, { method: "POST", body: JSON.stringify({ note }) }),
   complete: (id: string, note?: string) =>
@@ -149,6 +156,41 @@ export const workOrdersApi = {
     api(`/work-orders/${id}/progress`, {
       method: "POST",
       body: JSON.stringify({ percentComplete: progress, note: note ?? "Progress updated from RRIMS frontend", blocked: false }),
+    }),
+};
+
+export const chatApi = {
+  messages: (conversationId: string, query?: Record<string, string | number | undefined>) =>
+    api<Paginated<GenericRecord> | GenericRecord[]>(`/chat/conversations/${conversationId}/messages`, { query }),
+  sendMessage: (conversationId: string, body: Record<string, unknown>) =>
+    api<GenericRecord>(`/chat/conversations/${conversationId}/messages`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  addAttachment: (conversationId: string, body: Record<string, unknown>) =>
+    api<GenericRecord>(`/chat/conversations/${conversationId}/attachments`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+};
+
+export const callsApi = {
+  create: (conversationId: string, type: "VOICE" | "VIDEO" = "VOICE") =>
+    api<GenericRecord>("/calls", {
+      method: "POST",
+      body: JSON.stringify({ conversationId, type }),
+    }),
+  ring: (callId: string, reason = "Ring from RRIMS frontend") =>
+    api<GenericRecord>(`/calls/${callId}/ring`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    }),
+  answer: (callId: string) =>
+    api<GenericRecord>(`/calls/${callId}/answer`, { method: "POST", body: JSON.stringify({}) }),
+  end: (callId: string, reason = "Ended from RRIMS frontend") =>
+    api<GenericRecord>(`/calls/${callId}/end`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
     }),
 };
 
