@@ -17,6 +17,7 @@ import {
   Menu,
   MessageSquare,
   PhoneCall,
+  Search,
   ServerCog,
   Settings,
   ShieldAlert,
@@ -25,7 +26,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { PropsWithChildren, useState } from "react";
+import { PropsWithChildren, useEffect, useMemo, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../context/AuthContext";
@@ -73,9 +74,30 @@ function canSeeNavItem(user: User | null, item: NavItem) {
 
 export function AppLayout({ children }: PropsWithChildren) {
   const [open, setOpen] = useState(false);
+  const [commandOpen, setCommandOpen] = useState(false);
+  const [commandQuery, setCommandQuery] = useState("");
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const visibleNavItems = navItems.filter((item) => canSeeNavItem(user, item));
+  const commandItems = useMemo(
+    () =>
+      visibleNavItems.filter((item) =>
+        `${item.group} ${item.label}`.toLowerCase().includes(commandQuery.toLowerCase()),
+      ),
+    [visibleNavItems, commandQuery],
+  );
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setCommandOpen((value) => !value);
+      }
+      if (event.key === "Escape") setCommandOpen(false);
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   async function handleLogout() {
     await logout();
@@ -163,6 +185,11 @@ export function AppLayout({ children }: PropsWithChildren) {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <Button variant="secondary" onClick={() => setCommandOpen(true)}>
+              <Search className="h-4 w-4" />
+              Command
+              <span className="hidden rounded border border-slate-300 px-1.5 py-0.5 text-[10px] font-black text-ink-500 sm:inline">Ctrl K</span>
+            </Button>
             <Button variant="danger" onClick={() => navigate("/app/reports")}>
               <Siren className="h-4 w-4" />
               Incident
@@ -181,6 +208,51 @@ export function AppLayout({ children }: PropsWithChildren) {
 
         <main className="mx-auto max-w-[1480px] p-4 lg:p-8">{children}</main>
       </div>
+      {commandOpen ? (
+        <div className="fixed inset-0 z-50 bg-slate-950/50 p-4 backdrop-blur-sm" onMouseDown={() => setCommandOpen(false)}>
+          <div className="mx-auto mt-20 max-w-2xl overflow-hidden rounded-lg border border-slate-200 bg-white shadow-2xl" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="border-b border-slate-200 p-4">
+              <div className="flex items-center gap-3">
+                <Search className="h-5 w-5 text-civic-700" />
+                <input
+                  autoFocus
+                  className="h-11 flex-1 border-0 text-base font-semibold outline-none placeholder:text-slate-400"
+                  value={commandQuery}
+                  onChange={(event) => setCommandQuery(event.target.value)}
+                  placeholder="Search modules, actions, settings..."
+                />
+              </div>
+            </div>
+            <div className="max-h-[55vh] overflow-y-auto p-2">
+              {commandItems.map((item) => (
+                <button
+                  key={item.to}
+                  className="flex w-full items-center justify-between rounded-md px-3 py-3 text-left hover:bg-civic-50"
+                  onClick={() => {
+                    navigate(item.to);
+                    setCommandOpen(false);
+                    setCommandQuery("");
+                  }}
+                >
+                  <span className="flex items-center gap-3">
+                    <span className="grid h-9 w-9 place-items-center rounded-md bg-slate-100 text-civic-700">
+                      <item.icon className="h-4 w-4" />
+                    </span>
+                    <span>
+                      <span className="block text-sm font-black text-ink-900">{item.label}</span>
+                      <span className="block text-xs font-semibold uppercase tracking-[0.13em] text-ink-500">{item.group}</span>
+                    </span>
+                  </span>
+                  <span className="text-xs font-bold text-civic-700">Open</span>
+                </button>
+              ))}
+              {!commandItems.length ? (
+                <div className="p-8 text-center text-sm font-semibold text-ink-500">No matching module available for your role.</div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
