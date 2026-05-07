@@ -1,7 +1,7 @@
-import { Plus, Search } from "lucide-react";
+import { CheckCircle2, Eye, Plus, RotateCcw, Search, XCircle } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 
-import { geographyApi, reportsApi, unwrapList } from "../api/services";
+import { geographyApi, moduleApi, reportsApi, unwrapList } from "../api/services";
 import type { Report, SelectOption } from "../api/types";
 import { DataTable } from "../components/DataTable";
 import { PageHeader } from "../components/PageHeader";
@@ -12,6 +12,7 @@ import { dateLabel } from "../utils/format";
 export function ReportsPage() {
   const [search, setSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false);
+  const [selected, setSelected] = useState<Report | null>(null);
   const [refresh, setRefresh] = useState(0);
   const reports = useAsync(() => reportsApi.list({ limit: 20, search }), [refresh]);
   const rows = reports.data ? unwrapList<Report>(reports.data) : [];
@@ -52,9 +53,62 @@ export function ReportsPage() {
           { header: "Assignee", cell: (row) => row.assignedEngineer?.fullName ?? "Unassigned" },
           { header: "Location", cell: (row) => row.localGovernment ?? row.district ?? "Not set" },
           { header: "Created", cell: (row) => dateLabel(row.createdAt) },
+          { header: "Actions", cell: (row) => <Button variant="secondary" onClick={() => setSelected(row)}><Eye className="h-4 w-4" />Open</Button> },
         ]}
       />
+      {selected ? <ReportDetail report={selected} onClose={() => setSelected(null)} onChanged={() => setRefresh((value) => value + 1)} /> : null}
     </>
+  );
+}
+
+function ReportDetail({ report, onClose, onChanged }: { report: Report; onClose: () => void; onChanged: () => void }) {
+  const [note, setNote] = useState("Updated from RRIMS frontend");
+  const timeline = useAsync(() => reportsApi.timeline(report.id), [report.id]);
+
+  async function run(action: "verify" | "reject" | "reopen" | "close") {
+    await moduleApi.post(`/reports/${report.id}/${action}`, { reason: note, note });
+    onChanged();
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 bg-slate-950/40 p-4 backdrop-blur-sm">
+      <div className="ml-auto h-full max-w-2xl overflow-y-auto rounded-lg bg-white p-5 shadow-soft">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-wide text-civic-700">Report detail</p>
+            <h2 className="mt-1 text-2xl font-bold text-ink-900">{report.title}</h2>
+            <p className="mt-1 text-sm text-ink-500">{report.code ?? report.trackingCode ?? report.id}</p>
+          </div>
+          <Button variant="ghost" onClick={onClose}>Close</Button>
+        </div>
+        <div className="mt-5 flex flex-wrap gap-2">
+          <Badge value={report.status} />
+          <Badge value={report.severity} />
+          <Badge value={report.priority} />
+        </div>
+        <p className="mt-5 rounded-lg bg-slate-50 p-4 text-sm leading-6 text-ink-700">{report.description ?? "No description returned."}</p>
+        <div className="mt-4">
+          <Field label="Action note">
+            <textarea className={`${inputClass} h-24 py-3`} value={note} onChange={(event) => setNote(event.target.value)} />
+          </Field>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button variant="secondary" onClick={() => run("verify")}><CheckCircle2 className="h-4 w-4" />Verify</Button>
+          <Button variant="secondary" onClick={() => run("reopen")}><RotateCcw className="h-4 w-4" />Reopen</Button>
+          <Button variant="secondary" onClick={() => run("close")}>Close report</Button>
+          <Button variant="danger" onClick={() => run("reject")}><XCircle className="h-4 w-4" />Reject</Button>
+        </div>
+        <div className="mt-6">
+          <h3 className="font-bold text-ink-900">Timeline</h3>
+          <div className="mt-3 space-y-2">
+            {(Array.isArray(timeline.data) ? timeline.data : []).slice(0, 8).map((item, index) => (
+              <div key={index} className="rounded-md border border-slate-200 p-3 text-sm text-ink-700">{JSON.stringify(item)}</div>
+            ))}
+            {!timeline.loading && (!Array.isArray(timeline.data) || timeline.data.length === 0) ? <p className="text-sm text-ink-500">No timeline returned.</p> : null}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 

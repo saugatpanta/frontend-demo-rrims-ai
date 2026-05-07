@@ -82,11 +82,11 @@ export const workOrdersApi = {
   start: (id: string, note?: string) =>
     api(`/work-orders/${id}/start`, { method: "POST", body: JSON.stringify({ note }) }),
   complete: (id: string, note?: string) =>
-    api(`/work-orders/${id}/complete`, { method: "POST", body: JSON.stringify({ note }) }),
+    api(`/work-orders/${id}/complete`, { method: "POST", body: JSON.stringify({ resolutionNotes: note ?? "Completed from RRIMS frontend" }) }),
   progress: (id: string, progress: number, note?: string) =>
     api(`/work-orders/${id}/progress`, {
       method: "POST",
-      body: JSON.stringify({ progress, note }),
+      body: JSON.stringify({ percentComplete: progress, note: note ?? "Progress updated from RRIMS frontend", blocked: false }),
     }),
 };
 
