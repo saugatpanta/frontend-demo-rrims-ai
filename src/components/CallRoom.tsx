@@ -14,7 +14,9 @@ export function CallRoom({
   onEnded: () => void;
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const remoteRef = useRef<HTMLDivElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const roomRef = useRef<any>(null);
   const [status, setStatus] = useState("");
   const [mic, setMic] = useState(true);
   const [camera, setCamera] = useState(false);
@@ -27,14 +29,79 @@ export function CallRoom({
 
   useEffect(() => {
     if (!callId) return;
-    startMedia(false);
-    callsApi.join(callId).catch(() => undefined);
+    connectTwilioRoom();
 
     return () => {
+      roomRef.current?.disconnect?.();
       streamRef.current?.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
+      if (remoteRef.current) remoteRef.current.innerHTML = "";
     };
   }, [callId]);
+
+  async function connectTwilioRoom() {
+    if (!callId) return;
+    try {
+      setStatus("Connecting secure media room...");
+      const [{ connect }, tokenPayload] = await Promise.all([
+        import("twilio-video"),
+        callsApi.twilioToken(callId),
+      ]);
+      const token = String(tokenPayload.token ?? "");
+      const roomName = String(tokenPayload.roomName ?? "");
+      if (!token) throw new Error("Twilio token was not returned by the backend.");
+      const room = await connect(token, { name: roomName || undefined, audio: true, video: false });
+      roomRef.current = room;
+      setMic(true);
+      setCamera(false);
+      setStatus(`Connected to ${room.name}. Waiting for the other participant.`);
+      callsApi.join(callId).catch(() => undefined);
+
+      room.localParticipant.audioTracks.forEach((publication: any) => {
+        publication.track?.enable?.();
+      });
+
+      room.participants.forEach(attachParticipant);
+      room.on("participantConnected", attachParticipant);
+      room.on("participantDisconnected", detachParticipant);
+      room.on("disconnected", () => {
+        if (remoteRef.current) remoteRef.current.innerHTML = "";
+      });
+    } catch (error) {
+      await startMedia(false);
+      callsApi.join(callId).catch(() => undefined);
+      setStatus(
+        error instanceof Error
+          ? `${error.message} Local media fallback is active.`
+          : "Local media fallback is active.",
+      );
+    }
+  }
+
+  function attachParticipant(participant: any) {
+    participant.tracks?.forEach((publication: any) => {
+      if (publication.track) attachTrack(publication.track);
+    });
+    participant.on?.("trackSubscribed", attachTrack);
+    participant.on?.("trackUnsubscribed", detachTrack);
+  }
+
+  function detachParticipant(participant: any) {
+    participant.tracks?.forEach((publication: any) => {
+      if (publication.track) detachTrack(publication.track);
+    });
+  }
+
+  function attachTrack(track: any) {
+    if (!remoteRef.current || !track.attach) return;
+    const element = track.attach();
+    element.className = "h-full w-full object-cover";
+    remoteRef.current.appendChild(element);
+  }
+
+  function detachTrack(track: any) {
+    track.detach?.().forEach((element: HTMLElement) => element.remove());
+  }
 
   async function startMedia(withVideo: boolean) {
     try {
@@ -55,20 +122,36 @@ export function CallRoom({
     streamRef.current?.getAudioTracks().forEach((track) => {
       track.enabled = next;
     });
+    roomRef.current?.localParticipant?.audioTracks?.forEach((publication: any) => {
+      next ? publication.track?.enable?.() : publication.track?.disable?.();
+    });
     setMic(next);
   }
 
   async function toggleCamera() {
     if (!camera) {
+      if (roomRef.current) {
+        const { createLocalVideoTrack } = await import("twilio-video");
+        const track = await createLocalVideoTrack();
+        await roomRef.current.localParticipant.publishTrack(track);
+        if (videoRef.current) videoRef.current.srcObject = new MediaStream([track.mediaStreamTrack]);
+        setCamera(true);
+        return;
+      }
       await startMedia(true);
       return;
     }
     streamRef.current?.getVideoTracks().forEach((track) => track.stop());
+    roomRef.current?.localParticipant?.videoTracks?.forEach((publication: any) => {
+      publication.track?.stop?.();
+      roomRef.current.localParticipant.unpublishTrack(publication.track);
+    });
     setCamera(false);
   }
 
   async function endCall() {
     if (callId) await callsApi.end(callId, "Ended from call room");
+    roomRef.current?.disconnect?.();
     streamRef.current?.getTracks().forEach((track) => track.stop());
     playTone("success");
     onEnded();
@@ -80,6 +163,7 @@ export function CallRoom({
     <Panel className="mt-4 border-civic-100 bg-civic-50/80">
       <div className="grid gap-4 lg:grid-cols-[1fr_0.9fr]">
         <div className="relative aspect-video overflow-hidden rounded-lg bg-slate-950">
+          <div ref={remoteRef} className="absolute inset-0" />
           <video ref={videoRef} autoPlay muted playsInline className="h-full w-full object-cover" />
           {!camera ? (
             <div className="absolute inset-0 grid place-items-center text-center text-white">

@@ -32,6 +32,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../context/AuthContext";
 import { Avatar, Button } from "../components/ui";
+import { useBrowserNotifications } from "../hooks/useBrowserNotifications";
 import { useRealtimeStream } from "../hooks/useRealtimeStream";
 import { canAccess, governmentRoles, managementRoles, type AccessRule } from "../auth/access";
 import type { User } from "../api/types";
@@ -80,6 +81,7 @@ export function AppLayout({ children }: PropsWithChildren) {
   const [commandQuery, setCommandQuery] = useState("");
   const [unreadNotifications, setUnreadNotifications] = useState<number | null>(null);
   const { user, logout } = useAuth();
+  const browserNotifications = useBrowserNotifications();
   const navigate = useNavigate();
   const visibleNavItems = navItems.filter((item) => canSeeNavItem(user, item));
   const commandItems = useMemo(
@@ -110,7 +112,17 @@ export function AppLayout({ children }: PropsWithChildren) {
   useRealtimeStream(user ? "/dashboard/stream" : null, undefined, ({ event, data }) => {
     if (event !== "dashboard.notification-count" || !data || typeof data !== "object") return;
     const count = Number((data as { unreadNotifications?: unknown }).unreadNotifications ?? 0);
-    if (Number.isFinite(count)) setUnreadNotifications(count);
+    if (Number.isFinite(count)) {
+      setUnreadNotifications((previous) => {
+        if (previous !== null && count > previous) {
+          browserNotifications.notify("New RRIMS notification", {
+            body: `You have ${count} unread notification${count === 1 ? "" : "s"}.`,
+            tag: "rrims-notifications",
+          });
+        }
+        return count;
+      });
+    }
   });
 
   return (
@@ -220,6 +232,11 @@ export function AppLayout({ children }: PropsWithChildren) {
                 <span className="rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-black text-red-700">{unreadNotifications}</span>
               ) : null}
             </Button>
+            {browserNotifications.permission !== "granted" ? (
+              <Button variant="secondary" onClick={() => browserNotifications.requestPermission()}>
+                Enable alerts
+              </Button>
+            ) : null}
             <Button variant="danger" onClick={() => navigate("/app/reports")}>
               <Siren className="h-4 w-4" />
               Incident
