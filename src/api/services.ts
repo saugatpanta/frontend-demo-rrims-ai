@@ -161,6 +161,8 @@ export const usersApi = {
     api<User>(`/users/${id}/${action}`, { method: "POST", body: JSON.stringify(body) }),
   patch: (id: string, body: Record<string, unknown>) =>
     api<User>(`/users/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  remove: (id: string, reason: string) =>
+    api<User>(`/users/${id}`, { method: "DELETE", body: JSON.stringify({ reason }) }),
 };
 
 export const profileApi = {

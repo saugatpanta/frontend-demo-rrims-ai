@@ -22,6 +22,8 @@ export function NotificationsPage() {
         { label: "read", run: (row) => moduleApi.patch(`/notifications/${row.id}/read`) },
         { label: "retry", run: (row) => moduleApi.post(`/notifications/${row.id}/retry`, { reason: "Retry from RRIMS frontend" }) },
       ]}
+      deletePath={(row) => row.id ? `/notifications/${row.id}` : undefined}
+      deleteReason="Deleted by super admin from RRIMS notification console"
     />
   );
 }

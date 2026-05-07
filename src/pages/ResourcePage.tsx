@@ -1,4 +1,4 @@
-import { RefreshCw, Search } from "lucide-react";
+import { RefreshCw, Search, Trash2 } from "lucide-react";
 import { FormEvent, ReactNode, useMemo, useState } from "react";
 
 import { GenericRecord, moduleApi, unwrapList } from "../api/services";
@@ -8,6 +8,7 @@ import { PageHeader } from "../components/PageHeader";
 import { Badge, Button, inputClass, Panel } from "../components/ui";
 import { useAsync } from "../hooks/useAsync";
 import { dateLabel, titleCase } from "../utils/format";
+import { useAuth } from "../context/AuthContext";
 
 type ResourcePageProps = {
   title: string;
@@ -24,6 +25,8 @@ type ResourcePageProps = {
     label: string;
     run: (row: GenericRecord) => Promise<unknown>;
   }>;
+  deletePath?: (row: GenericRecord) => string | undefined;
+  deleteReason?: string;
 };
 
 type ResourceColumn = NonNullable<ResourcePageProps["columns"]>[number];
@@ -51,12 +54,16 @@ export function ResourcePage({
   description,
   columns,
   actions = [],
+  deletePath,
+  deleteReason = "Deleted by super admin from RRIMS console",
 }: ResourcePageProps) {
+  const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [refresh, setRefresh] = useState(0);
   const [actionMessage, setActionMessage] = useState("");
   const records = useAsync(() => moduleApi.list<GenericRecord>(path, { limit: 25, search }), [refresh]);
   const rows = records.data ? unwrapList<GenericRecord>(records.data) : [];
+  const canDelete = String(user?.role ?? "") === "SUPER_ADMIN" && Boolean(deletePath);
 
   const resolvedColumns = useMemo<ResourceColumn[]>(
     () =>
@@ -114,6 +121,7 @@ export function ResourcePage({
             cell: (row: GenericRecord) => column.cell ? column.cell(row) : readable(valueAt(row, column.key)),
           })),
           ...(actions.length
+          || canDelete
             ? [{
                 header: "Actions",
                 cell: (row: GenericRecord) => (
@@ -132,6 +140,24 @@ export function ResourcePage({
                         {titleCase(action.label)}
                       </Button>
                     ))}
+                    {canDelete ? (
+                      <Button variant="danger" onClick={async () => {
+                        const targetPath = deletePath?.(row);
+                        if (!targetPath) return;
+                        const label = readable(row.name ?? row.title ?? row.subject ?? row.id);
+                        if (!window.confirm(`Delete ${label}? This action is limited to super admins and audit history will remain.`)) return;
+                        setActionMessage("");
+                        try {
+                          await moduleApi.remove(targetPath, { reason: deleteReason });
+                          setActionMessage("Delete completed.");
+                          setRefresh((value) => value + 1);
+                        } catch (error) {
+                          setActionMessage(error instanceof Error ? error.message : "Delete failed.");
+                        }
+                      }}>
+                        <Trash2 className="h-4 w-4" />Delete
+                      </Button>
+                    ) : null}
                   </div>
                 ),
               }]

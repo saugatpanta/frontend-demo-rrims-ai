@@ -1,4 +1,4 @@
-import { CheckCircle2, Eye, Plus, RotateCcw, Search, XCircle } from "lucide-react";
+import { CheckCircle2, Eye, Plus, RotateCcw, Search, Trash2, XCircle } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 
 import { geographyApi, moduleApi, reportsApi, unwrapList } from "../api/services";
@@ -9,6 +9,7 @@ import { Badge, Button, Field, inputClass, Panel } from "../components/ui";
 import { useAsync } from "../hooks/useAsync";
 import { dateLabel } from "../utils/format";
 import { playTone } from "../utils/sound";
+import { useAuth } from "../context/AuthContext";
 
 export function ReportsPage() {
   const [search, setSearch] = useState("");
@@ -63,6 +64,7 @@ export function ReportsPage() {
 }
 
 function ReportDetail({ report, onClose, onChanged }: { report: Report; onClose: () => void; onChanged: () => void }) {
+  const { user } = useAuth();
   const [note, setNote] = useState("Updated from RRIMS frontend");
   const [actionMessage, setActionMessage] = useState("");
   const [actionLoading, setActionLoading] = useState("");
@@ -79,6 +81,25 @@ function ReportDetail({ report, onClose, onChanged }: { report: Report; onClose:
     } catch (error) {
       playTone("error");
       setActionMessage(error instanceof Error ? error.message : "Action failed.");
+    } finally {
+      setActionLoading("");
+    }
+  }
+
+  async function removeReport() {
+    if (String(user?.role ?? "") !== "SUPER_ADMIN") return;
+    if (!window.confirm(`Delete ${report.title}? This will soft-delete the report and preserve audit history.`)) return;
+    setActionMessage("");
+    setActionLoading("delete");
+    try {
+      await moduleApi.remove(`/reports/${report.id}`, { reason: note, note });
+      playTone("success");
+      setActionMessage("Report deleted successfully.");
+      onChanged();
+      onClose();
+    } catch (error) {
+      playTone("error");
+      setActionMessage(error instanceof Error ? error.message : "Delete failed.");
     } finally {
       setActionLoading("");
     }
@@ -111,6 +132,9 @@ function ReportDetail({ report, onClose, onChanged }: { report: Report; onClose:
           <Button variant="secondary" loading={actionLoading === "reopen"} onClick={() => run("reopen")}><RotateCcw className="h-4 w-4" />Reopen</Button>
           <Button variant="secondary" loading={actionLoading === "close"} onClick={() => run("close")}>Close report</Button>
           <Button variant="danger" loading={actionLoading === "reject"} onClick={() => run("reject")}><XCircle className="h-4 w-4" />Reject</Button>
+          {String(user?.role ?? "") === "SUPER_ADMIN" ? (
+            <Button variant="danger" loading={actionLoading === "delete"} onClick={removeReport}><Trash2 className="h-4 w-4" />Delete</Button>
+          ) : null}
         </div>
         {actionMessage ? <p className="mt-3 rounded-md bg-amber-50 p-3 text-sm font-medium text-amber-800">{actionMessage}</p> : null}
         <div className="mt-6">

@@ -1,5 +1,6 @@
 import {
   CheckCircle2,
+  Trash2,
   KeyRound,
   Lock,
   Plus,
@@ -18,6 +19,7 @@ import { PageHeader } from "../components/PageHeader";
 import { Badge, Button, Field, inputClass, Panel } from "../components/ui";
 import { useAsync } from "../hooks/useAsync";
 import { playTone } from "../utils/sound";
+import { useAuth } from "../context/AuthContext";
 
 const roles = [
   "CITIZEN",
@@ -34,6 +36,7 @@ const roles = [
 const statuses = ["", "ACTIVE", "PENDING", "SUSPENDED", "LOCKED", "DISABLED", "REJECTED"];
 
 export function UsersPage() {
+  const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
   const [role, setRole] = useState("");
@@ -42,6 +45,7 @@ export function UsersPage() {
   const [refresh, setRefresh] = useState(0);
   const users = useAsync(() => usersApi.list({ limit: 50, search, status, role }), [refresh]);
   const rows = users.data ? unwrapList<User>(users.data) : [];
+  const isSuperAdmin = String(user?.role ?? "") === "SUPER_ADMIN";
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -59,6 +63,23 @@ export function UsersPage() {
     } catch (error) {
       playTone("error");
       setMessage(error instanceof Error ? error.message : "User action failed.");
+    }
+  }
+
+  async function deleteUser(row: User) {
+    if (!row.id) return;
+    const label = row.fullName || row.username || row.id;
+    const confirmed = window.confirm(`Delete ${label}? This disables the account, revokes sessions, and keeps audit history.`);
+    if (!confirmed) return;
+    setMessage("");
+    try {
+      await usersApi.remove(row.id, "Deleted by super admin from RRIMS identity console");
+      playTone("success");
+      setMessage("User deleted and sessions revoked.");
+      setRefresh((value) => value + 1);
+    } catch (error) {
+      playTone("error");
+      setMessage(error instanceof Error ? error.message : "User delete failed.");
     }
   }
 
@@ -119,6 +140,9 @@ export function UsersPage() {
               <Button variant="secondary" onClick={() => run(row.id, "verify-phone")}>Phone</Button>
               <Button variant="secondary" onClick={() => run(row.id, "reset-mfa", { revokeTrustedDevices: true })}><KeyRound className="h-4 w-4" />MFA</Button>
               <Button variant="secondary" onClick={() => run(row.id, "revoke-sessions", { scope: "ALL" })}>Sessions</Button>
+              {isSuperAdmin && row.id !== user?.id ? (
+                <Button variant="danger" onClick={() => deleteUser(row)}><Trash2 className="h-4 w-4" />Delete</Button>
+              ) : null}
             </div>
           ) },
         ]}

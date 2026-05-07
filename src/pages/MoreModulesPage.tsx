@@ -22,6 +22,8 @@ export function FilesPage() {
         { label: "restore", run: (row) => moduleApi.post(`/files/${row.id ?? row.fileId}/restore`, { reason: "Restored from RRIMS frontend" }) },
         { label: "signed url", run: (row) => moduleApi.post(`/files/${row.id ?? row.fileId}/signed-url`, { expiresInSeconds: 300 }) },
       ]}
+      deletePath={(row) => row.id || row.fileId ? `/files/${row.id ?? row.fileId}` : undefined}
+      deleteReason="Deleted by super admin from RRIMS file console"
     />
   );
 }
@@ -39,6 +41,8 @@ export function SlasPage() {
         { header: "Target", cell: (row) => String(row.targetHours ?? row.responseHours ?? row.duration ?? "Not set") },
         { header: "Updated", key: "updatedAt" },
       ]}
+      deletePath={(row) => row.id ? `/slas/${row.id}` : undefined}
+      deleteReason="Deleted by super admin from RRIMS SLA console"
     />
   );
 }
@@ -77,6 +81,8 @@ export function WebhooksPage() {
         { label: "test", run: (row) => moduleApi.post(`/webhooks/${row.id}/test`, { payload: { source: "rrims-frontend" } }) },
         { label: "rotate", run: (row) => moduleApi.post(`/webhooks/${row.id}/rotate-secret`, { reason: "Rotated from RRIMS frontend" }) },
       ]}
+      deletePath={(row) => row.id ? `/webhooks/${row.id}` : undefined}
+      deleteReason="Deleted by super admin from RRIMS webhook console"
     />
   );
 }

@@ -194,6 +194,7 @@ export const apiCatalog: ApiEndpoint[] = [
   { group: "Users", method: "GET", path: "/users/:id" },
   { group: "Users", method: "POST", path: "/users" },
   { group: "Users", method: "PATCH", path: "/users/:id" },
+  { group: "Users", method: "DELETE", path: "/users/:id" },
   { group: "Users", method: "POST", path: "/users/:id/approve" },
   { group: "Users", method: "POST", path: "/users/:id/reject" },
   { group: "Users", method: "POST", path: "/users/:id/activate" },
