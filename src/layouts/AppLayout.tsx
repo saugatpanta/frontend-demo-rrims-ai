@@ -29,37 +29,51 @@ import { NavLink, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../context/AuthContext";
 import { Button } from "../components/ui";
+import { canAccess, governmentRoles, managementRoles, type AccessRule } from "../auth/access";
+import type { User } from "../api/types";
 
-const navItems = [
-  { group: "Command", to: "/app", label: "Dashboard", icon: Home },
+type NavItem = {
+  group: string;
+  to: string;
+  label: string;
+  icon: typeof Home;
+} & AccessRule;
+
+const navItems: NavItem[] = [
+  { group: "Command", to: "/app", label: "Dashboard", icon: Home, permissions: ["dashboard.read"] },
   { group: "Command", to: "/app/reports", label: "Reports", icon: FileText },
-  { group: "Command", to: "/app/work-orders", label: "Work Orders", icon: BriefcaseBusiness },
-  { group: "Command", to: "/app/workflow", label: "Workflow", icon: Activity },
-  { group: "Command", to: "/app/cases", label: "Cases", icon: BriefcaseBusiness },
-  { group: "Evidence", to: "/app/media", label: "Media", icon: Image },
-  { group: "Evidence", to: "/app/files", label: "Files", icon: FileText },
+  { group: "Command", to: "/app/work-orders", label: "Work Orders", icon: BriefcaseBusiness, roles: ["ENGINEER", "NGO", ...governmentRoles] },
+  { group: "Command", to: "/app/workflow", label: "Workflow", icon: Activity, roles: ["ENGINEER", "NGO", ...governmentRoles] },
+  { group: "Command", to: "/app/cases", label: "Cases", icon: BriefcaseBusiness, roles: governmentRoles },
+  { group: "Evidence", to: "/app/media", label: "Media", icon: Image, roles: ["ENGINEER", "NGO", ...governmentRoles] },
+  { group: "Evidence", to: "/app/files", label: "Files", icon: FileText, roles: managementRoles },
   { group: "Communications", to: "/app/chat", label: "Chat", icon: MessageSquare },
   { group: "Communications", to: "/app/calls", label: "Calls", icon: PhoneCall },
   { group: "Communications", to: "/app/notifications", label: "Notifications", icon: Bell },
-  { group: "Intelligence", to: "/app/analytics", label: "Analytics", icon: BarChart3 },
+  { group: "Intelligence", to: "/app/analytics", label: "Analytics", icon: BarChart3, roles: governmentRoles },
   { group: "Intelligence", to: "/app/geography", label: "Geography", icon: Map },
-  { group: "Governance", to: "/app/users", label: "Users", icon: Users },
-  { group: "Governance", to: "/app/audit", label: "Audit", icon: ShieldAlert },
-  { group: "Governance", to: "/app/api-keys", label: "API Keys", icon: KeyRound },
-  { group: "Governance", to: "/app/admins", label: "Admins", icon: Users },
-  { group: "Operations", to: "/app/slas", label: "SLAs", icon: Clock3 },
-  { group: "Operations", to: "/app/webhooks", label: "Webhooks", icon: Cable },
-  { group: "Operations", to: "/app/outbox", label: "Outbox", icon: CircuitBoard },
-  { group: "Operations", to: "/app/workers", label: "Workers", icon: ServerCog },
-  { group: "Operations", to: "/app/api-hub", label: "API Hub", icon: Activity },
+  { group: "Governance", to: "/app/users", label: "Users", icon: Users, roles: managementRoles },
+  { group: "Governance", to: "/app/audit", label: "Audit", icon: ShieldAlert, roles: managementRoles },
+  { group: "Governance", to: "/app/api-keys", label: "API Keys", icon: KeyRound, permissions: ["api_keys.read"] },
+  { group: "Governance", to: "/app/admins", label: "Admins", icon: Users, roles: ["ADMIN"] },
+  { group: "Operations", to: "/app/slas", label: "SLAs", icon: Clock3, roles: governmentRoles },
+  { group: "Operations", to: "/app/webhooks", label: "Webhooks", icon: Cable, roles: managementRoles },
+  { group: "Operations", to: "/app/outbox", label: "Outbox", icon: CircuitBoard, permissions: ["outbox.events.read", "outbox.dlq.read"] },
+  { group: "Operations", to: "/app/workers", label: "Workers", icon: ServerCog, permissions: ["workers.read"] },
+  { group: "Operations", to: "/app/api-hub", label: "API Hub", icon: Activity, roles: ["SUPER_ADMIN"] },
   { group: "Account", to: "/app/support", label: "Support", icon: LifeBuoy },
   { group: "Account", to: "/app/profile", label: "Profile", icon: Shield },
 ];
+
+function canSeeNavItem(user: User | null, item: NavItem) {
+  return canAccess(user, item);
+}
 
 export function AppLayout({ children }: PropsWithChildren) {
   const [open, setOpen] = useState(false);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const visibleNavItems = navItems.filter((item) => canSeeNavItem(user, item));
 
   async function handleLogout() {
     await logout();
@@ -99,11 +113,11 @@ export function AppLayout({ children }: PropsWithChildren) {
         </div>
 
         <nav className="h-[calc(100vh-9.7rem)] overflow-y-auto px-3 py-4">
-          {Array.from(new Set(navItems.map((item) => item.group))).map((group) => (
+          {Array.from(new Set(visibleNavItems.map((item) => item.group))).map((group) => (
             <div key={group} className="mb-4">
               <p className="mb-1.5 px-3 text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">{group}</p>
               <div className="space-y-1">
-                {navItems.filter((item) => item.group === group).map((item) => (
+                {visibleNavItems.filter((item) => item.group === group).map((item) => (
                   <NavLink
                     key={item.to}
                     to={item.to}
