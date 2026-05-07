@@ -21,7 +21,9 @@ html {
 body {
   margin: 0;
   min-width: 320px;
-  background: #f1f5f9;
+  background:
+    linear-gradient(180deg, rgba(15, 118, 110, 0.06), rgba(248, 250, 252, 0) 240px),
+    #eef2f6;
 }
 
 button,
@@ -38,4 +40,23 @@ button {
 ::selection {
   background: #ccfbf1;
   color: #111827;
+}
+
+::-webkit-scrollbar {
+  width: 11px;
+  height: 11px;
+}
+
+::-webkit-scrollbar-track {
+  background: #e2e8f0;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border: 3px solid #e2e8f0;
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
 }
