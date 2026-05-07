@@ -26,6 +26,8 @@ type ResourcePageProps = {
   }>;
 };
 
+type ResourceColumn = NonNullable<ResourcePageProps["columns"]>[number];
+
 function valueAt(row: GenericRecord, key?: string) {
   if (!key) return undefined;
   return key.split(".").reduce<unknown>((acc, part) => {
@@ -55,13 +57,13 @@ export function ResourcePage({
   const records = useAsync(() => moduleApi.list<GenericRecord>(path, { limit: 25, search }), [refresh]);
   const rows = records.data ? unwrapList<GenericRecord>(records.data) : [];
 
-  const resolvedColumns = useMemo(
+  const resolvedColumns = useMemo<ResourceColumn[]>(
     () =>
-      columns ?? [
+      (columns ?? [
         { header: "Record", cell: (row: GenericRecord) => <div><p className="font-semibold text-ink-900">{readable(row.title ?? row.name ?? row.subject ?? row.code ?? row.id)}</p><p className="max-w-md truncate text-xs text-ink-500">{readable(row.message ?? row.description ?? row.id)}</p></div> },
         { header: "Status", cell: (row: GenericRecord) => <Badge value={String(row.status ?? row.state ?? row.type ?? "ACTIVE")} /> },
         { header: "Created", cell: (row: GenericRecord) => readable(row.createdAt ?? row.timestamp) },
-      ],
+      ]) satisfies ResourceColumn[],
     [columns],
   );
 
