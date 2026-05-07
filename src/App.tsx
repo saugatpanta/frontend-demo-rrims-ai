@@ -5,11 +5,13 @@ import { AppLayout } from "./layouts/AppLayout";
 import { useAuth } from "./context/AuthContext";
 import { AnalyticsPage } from "./pages/AnalyticsPage";
 import { ApiKeysPage, AuditPage, NotificationsPage, SupportPage } from "./pages/AdminModulesPage";
+import { ApiHubPage } from "./pages/ApiHubPage";
 import { CallsPage, ChatPage } from "./pages/CommunicationsPage";
 import { CasesPage, MediaPage, WorkflowPage } from "./pages/CaseMediaPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { GeographyPage } from "./pages/GeographyPage";
 import { LoginPage } from "./pages/LoginPage";
+import { AdminsPage, FilesPage, OutboxPage, SlasPage, WebhooksPage, WorkersPage } from "./pages/MoreModulesPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { PublicPortalPage } from "./pages/PublicPortalPage";
 import { ReportsPage } from "./pages/ReportsPage";
@@ -41,6 +43,13 @@ export function App() {
       <Route path="/app/audit" element={<Protected><AuditPage /></Protected>} />
       <Route path="/app/api-keys" element={<Protected><ApiKeysPage /></Protected>} />
       <Route path="/app/media" element={<Protected><MediaPage /></Protected>} />
+      <Route path="/app/files" element={<Protected><FilesPage /></Protected>} />
+      <Route path="/app/admins" element={<Protected><AdminsPage /></Protected>} />
+      <Route path="/app/slas" element={<Protected><SlasPage /></Protected>} />
+      <Route path="/app/webhooks" element={<Protected><WebhooksPage /></Protected>} />
+      <Route path="/app/outbox" element={<Protected><OutboxPage /></Protected>} />
+      <Route path="/app/workers" element={<Protected><WorkersPage /></Protected>} />
+      <Route path="/app/api-hub" element={<Protected><ApiHubPage /></Protected>} />
       <Route path="/app/support" element={<Protected><SupportPage /></Protected>} />
       <Route path="/app/geography" element={<Protected><GeographyPage /></Protected>} />
       <Route path="/app/profile" element={<Protected><ProfilePage /></Protected>} />

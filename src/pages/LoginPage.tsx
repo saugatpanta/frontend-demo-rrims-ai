@@ -70,7 +70,7 @@ export function LoginPage() {
                 <input className={`${inputClass} pl-10`} type="password" value={password} onChange={(event) => setPassword(event.target.value)} required />
               </div>
             </Field>
-            <Button className="w-full" loading={loading}>
+            <Button type="submit" className="w-full" loading={loading}>
               Sign in to RRIMS
             </Button>
           </form>

@@ -19,11 +19,15 @@ function extractItems<T>(value: unknown): T[] {
 }
 
 export const authApi = {
-  async login(identifier: string, password: string) {
+  async login(identity: string, password: string) {
     const data = await api<LoginResponse>("/auth/login", {
       method: "POST",
       skipAuth: true,
-      body: JSON.stringify({ identifier, password }),
+      body: JSON.stringify({
+        identity,
+        password,
+        deviceFingerprint: getDeviceFingerprint(),
+      }),
     });
     const accessToken =
       data.accessToken ?? data.auth?.accessToken ?? data.token?.accessToken ?? "";
@@ -45,6 +49,15 @@ export const authApi = {
     setApiTokens({ accessToken: "", csrfToken: "" });
   },
 };
+
+function getDeviceFingerprint() {
+  const key = "rrims.deviceFingerprint";
+  const existing = localStorage.getItem(key);
+  if (existing) return existing;
+  const generated = `web-${crypto.randomUUID()}-${navigator.userAgent.slice(0, 48)}`;
+  localStorage.setItem(key, generated);
+  return generated;
+}
 
 export const publicApi = {
   summary: () => api<Record<string, unknown>>("/public-portal/summary", { skipAuth: true }),
