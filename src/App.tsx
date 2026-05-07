@@ -14,6 +14,7 @@ import { LoginPage } from "./pages/LoginPage";
 import { AdminsPage, FilesPage, OutboxPage, SlasPage, WebhooksPage, WorkersPage } from "./pages/MoreModulesPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { PublicPortalPage } from "./pages/PublicPortalPage";
+import { RegisterPage } from "./pages/RegisterPage";
 import { ReportsPage } from "./pages/ReportsPage";
 import { UsersPage } from "./pages/UsersPage";
 import { WorkOrdersPage } from "./pages/WorkOrdersPage";
@@ -30,6 +31,7 @@ export function App() {
     <Routes>
       <Route path="/" element={<PublicPortalPage />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
       <Route path="/app" element={<Protected><DashboardPage /></Protected>} />
       <Route path="/app/reports" element={<Protected><ReportsPage /></Protected>} />
       <Route path="/app/work-orders" element={<Protected><WorkOrdersPage /></Protected>} />

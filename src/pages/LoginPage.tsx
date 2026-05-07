@@ -74,6 +74,12 @@ export function LoginPage() {
               Sign in to RRIMS
             </Button>
           </form>
+          <p className="mt-5 text-center text-sm text-ink-500">
+            New citizen?{" "}
+            <Link to="/register" className="font-semibold text-civic-700">
+              Create an account
+            </Link>
+          </p>
         </Panel>
       </section>
     </main>

@@ -66,6 +66,13 @@ export const authApi = {
     await api("/auth/logout", { method: "POST" });
     setApiTokens({ accessToken: "", csrfToken: "" });
   },
+  async register(body: Record<string, unknown>) {
+    return api<LoginResponse>("/auth/register", {
+      method: "POST",
+      skipAuth: true,
+      body: JSON.stringify(body),
+    });
+  },
 };
 
 function getDeviceFingerprint() {

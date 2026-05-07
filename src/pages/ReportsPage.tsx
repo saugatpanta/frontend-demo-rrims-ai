@@ -8,6 +8,7 @@ import { PageHeader } from "../components/PageHeader";
 import { Badge, Button, Field, inputClass, Panel } from "../components/ui";
 import { useAsync } from "../hooks/useAsync";
 import { dateLabel } from "../utils/format";
+import { playTone } from "../utils/sound";
 
 export function ReportsPage() {
   const [search, setSearch] = useState("");
@@ -63,11 +64,24 @@ export function ReportsPage() {
 
 function ReportDetail({ report, onClose, onChanged }: { report: Report; onClose: () => void; onChanged: () => void }) {
   const [note, setNote] = useState("Updated from RRIMS frontend");
+  const [actionMessage, setActionMessage] = useState("");
+  const [actionLoading, setActionLoading] = useState("");
   const timeline = useAsync(() => reportsApi.timeline(report.id), [report.id]);
 
   async function run(action: "verify" | "reject" | "reopen" | "close") {
-    await moduleApi.post(`/reports/${report.id}/${action}`, { reason: note, note });
-    onChanged();
+    setActionMessage("");
+    setActionLoading(action);
+    try {
+      await moduleApi.post(`/reports/${report.id}/${action}`, { reason: note, note });
+      playTone("success");
+      setActionMessage(`${action} completed successfully.`);
+      onChanged();
+    } catch (error) {
+      playTone("error");
+      setActionMessage(error instanceof Error ? error.message : "Action failed.");
+    } finally {
+      setActionLoading("");
+    }
   }
 
   return (
@@ -93,11 +107,12 @@ function ReportDetail({ report, onClose, onChanged }: { report: Report; onClose:
           </Field>
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
-          <Button variant="secondary" onClick={() => run("verify")}><CheckCircle2 className="h-4 w-4" />Verify</Button>
-          <Button variant="secondary" onClick={() => run("reopen")}><RotateCcw className="h-4 w-4" />Reopen</Button>
-          <Button variant="secondary" onClick={() => run("close")}>Close report</Button>
-          <Button variant="danger" onClick={() => run("reject")}><XCircle className="h-4 w-4" />Reject</Button>
+          <Button variant="secondary" loading={actionLoading === "verify"} onClick={() => run("verify")}><CheckCircle2 className="h-4 w-4" />Verify</Button>
+          <Button variant="secondary" loading={actionLoading === "reopen"} onClick={() => run("reopen")}><RotateCcw className="h-4 w-4" />Reopen</Button>
+          <Button variant="secondary" loading={actionLoading === "close"} onClick={() => run("close")}>Close report</Button>
+          <Button variant="danger" loading={actionLoading === "reject"} onClick={() => run("reject")}><XCircle className="h-4 w-4" />Reject</Button>
         </div>
+        {actionMessage ? <p className="mt-3 rounded-md bg-amber-50 p-3 text-sm font-medium text-amber-800">{actionMessage}</p> : null}
         <div className="mt-6">
           <h3 className="font-bold text-ink-900">Timeline</h3>
           <div className="mt-3 space-y-2">

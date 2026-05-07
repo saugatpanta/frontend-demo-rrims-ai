@@ -77,10 +77,13 @@ export function PublicPortalPage() {
                     <ArrowRight className="h-4 w-4" />
                   </Button>
                 </a>
-                <Link to="/login">
-                  <Button variant="secondary">Operator workspace</Button>
-                </Link>
-              </div>
+              <Link to="/login">
+                <Button variant="secondary">Operator workspace</Button>
+              </Link>
+              <Link to="/register">
+                <Button variant="secondary">Citizen registration</Button>
+              </Link>
+            </div>
             </div>
 
             <div className="rounded-lg border border-white/15 bg-white/12 p-4 shadow-soft backdrop-blur-md">
