@@ -23,6 +23,7 @@ import {
   ShieldAlert,
   Shield,
   Siren,
+  Sparkles,
   Users,
   X,
 } from "lucide-react";
@@ -105,38 +106,45 @@ export function AppLayout({ children }: PropsWithChildren) {
   }
 
   return (
-    <div className="min-h-screen bg-[#eef2f6]">
+    <div className="min-h-screen bg-transparent">
       <aside
         className={clsx(
-          "fixed inset-y-0 left-0 z-30 w-80 border-r border-slate-800 bg-slate-950 text-white shadow-2xl transition-transform lg:translate-x-0",
+          "fixed inset-y-0 left-0 z-30 w-80 border-r border-white/10 bg-slate-950 text-white shadow-2xl transition-transform lg:translate-x-0",
           open ? "translate-x-0" : "-translate-x-full",
         )}
       >
-        <div className="border-b border-white/10 p-5">
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,#08111f,#0f172a_38%,#111827)]" />
+        <div className="absolute inset-0 surface-grid opacity-[0.08]" />
+        <div className="relative border-b border-white/10 p-5">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="grid h-12 w-12 place-items-center rounded-lg border border-white/15 bg-white text-civic-700">
+              <div className="grid h-12 w-12 place-items-center rounded-lg border border-white/15 bg-white text-civic-700 shadow-[0_16px_34px_rgba(20,184,166,0.2)]">
                 <Siren className="h-6 w-6" />
               </div>
               <div>
                 <p className="text-lg font-black leading-tight">RRIMS</p>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-civic-100">Government Command</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-civic-100">Response Intelligence</p>
               </div>
             </div>
             <button className="rounded-md p-2 text-white/80 hover:bg-white/10 lg:hidden" onClick={() => setOpen(false)}>
               <X className="h-5 w-5" />
             </button>
           </div>
-          <div className="mt-4 rounded-lg border border-civic-400/20 bg-civic-400/10 p-3">
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-civic-100">Operational status</p>
-            <div className="mt-2 flex items-center gap-2 text-sm font-semibold text-white">
-              <span className="h-2.5 w-2.5 rounded-full bg-green-400 shadow-[0_0_0_4px_rgba(74,222,128,0.15)]" />
-              Production API connected
+          <div className="mt-4 rounded-lg border border-civic-400/25 bg-white/[0.055] p-3 shadow-inner">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-civic-100">Operational status</p>
+                <div className="mt-2 flex items-center gap-2 text-sm font-semibold text-white">
+                  <span className="h-2.5 w-2.5 rounded-full bg-green-400 shadow-[0_0_0_4px_rgba(74,222,128,0.15)]" />
+                  Production API connected
+                </div>
+              </div>
+              <Sparkles className="h-4 w-4 text-amber-300" />
             </div>
           </div>
         </div>
 
-        <nav className="h-[calc(100vh-9.7rem)] overflow-y-auto px-3 py-4">
+        <nav className="relative h-[calc(100vh-9.7rem)] overflow-y-auto px-3 py-4">
           {Array.from(new Set(visibleNavItems.map((item) => item.group))).map((group) => (
             <div key={group} className="mb-4">
               <p className="mb-1.5 px-3 text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">{group}</p>
@@ -149,15 +157,22 @@ export function AppLayout({ children }: PropsWithChildren) {
                     onClick={() => setOpen(false)}
                     className={({ isActive }) =>
                       clsx(
-                        "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-semibold transition",
+                        "group relative flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-semibold transition duration-200",
                         isActive
-                          ? "bg-white text-slate-950 shadow-sm"
+                          ? "bg-white text-slate-950 shadow-[0_10px_28px_rgba(15,23,42,0.26)]"
                           : "text-slate-300 hover:bg-white/10 hover:text-white",
                       )
                     }
                   >
-                    <item.icon className="h-4 w-4" />
-                    {item.label}
+                    {({ isActive }) => (
+                      <>
+                        <span className={clsx("absolute left-0 h-6 w-1 rounded-r-full transition", isActive ? "bg-civic-500" : "bg-transparent group-hover:bg-white/30")} />
+                        <span className={clsx("grid h-8 w-8 place-items-center rounded-md transition", isActive ? "bg-civic-50 text-civic-700" : "bg-white/[0.055] text-slate-300 group-hover:bg-white/10 group-hover:text-white")}>
+                          <item.icon className="h-4 w-4" />
+                        </span>
+                        <span>{item.label}</span>
+                      </>
+                    )}
                   </NavLink>
                 ))}
               </div>
@@ -167,13 +182,13 @@ export function AppLayout({ children }: PropsWithChildren) {
       </aside>
 
       <div className="lg:pl-80">
-        <div className="bg-slate-950 px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] text-slate-300 lg:px-8">
+        <div className="bg-slate-950 px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] text-slate-300 shadow-sm lg:px-8">
           Government operational platform | Authorized personnel only | Audited session
         </div>
-        <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
+        <header className="sticky top-0 z-20 border-b border-white/70 bg-white/[0.82] shadow-[0_1px_2px_rgba(15,23,42,0.04)] backdrop-blur-xl">
           <div className="flex min-h-16 items-center justify-between gap-4 px-4 py-3 lg:px-8">
           <div className="flex items-center gap-3">
-            <button className="rounded-md p-2 hover:bg-slate-100 lg:hidden" onClick={() => setOpen(true)}>
+            <button className="rounded-md p-2 hover:bg-slate-100 lg:hidden" onClick={() => setOpen(true)} aria-label="Open navigation">
               <Menu className="h-5 w-5" />
             </button>
             <div>
@@ -210,8 +225,8 @@ export function AppLayout({ children }: PropsWithChildren) {
       </div>
       {commandOpen ? (
         <div className="fixed inset-0 z-50 bg-slate-950/50 p-4 backdrop-blur-sm" onMouseDown={() => setCommandOpen(false)}>
-          <div className="mx-auto mt-20 max-w-2xl overflow-hidden rounded-lg border border-slate-200 bg-white shadow-2xl" onMouseDown={(event) => event.stopPropagation()}>
-            <div className="border-b border-slate-200 p-4">
+          <div className="glass-surface mx-auto mt-20 max-w-2xl overflow-hidden rounded-lg border border-white/70 shadow-2xl ring-1 ring-slate-900/[0.04]" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="border-b border-slate-200/80 p-4">
               <div className="flex items-center gap-3">
                 <Search className="h-5 w-5 text-civic-700" />
                 <input
@@ -235,7 +250,7 @@ export function AppLayout({ children }: PropsWithChildren) {
                   }}
                 >
                   <span className="flex items-center gap-3">
-                    <span className="grid h-9 w-9 place-items-center rounded-md bg-slate-100 text-civic-700">
+                    <span className="grid h-9 w-9 place-items-center rounded-md bg-civic-50 text-civic-700 ring-1 ring-civic-100">
                       <item.icon className="h-4 w-4" />
                     </span>
                     <span>
