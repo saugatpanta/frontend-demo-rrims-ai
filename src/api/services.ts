@@ -187,6 +187,10 @@ export const callsApi = {
     }),
   answer: (callId: string) =>
     api<GenericRecord>(`/calls/${callId}/answer`, { method: "POST", body: JSON.stringify({}) }),
+  join: (callId: string) =>
+    api<GenericRecord>(`/calls/${callId}/join`, { method: "POST", body: JSON.stringify({}) }),
+  twilioToken: (callId: string) =>
+    api<GenericRecord>(`/calls/${callId}/twilio-token`, { method: "POST", body: JSON.stringify({}) }),
   end: (callId: string, reason = "Ended from RRIMS frontend") =>
     api<GenericRecord>(`/calls/${callId}/end`, {
       method: "POST",

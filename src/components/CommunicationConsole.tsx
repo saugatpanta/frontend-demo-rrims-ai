@@ -2,8 +2,10 @@ import { Mic, Paperclip, PhoneCall, RefreshCw, Send, Square } from "lucide-react
 import { useEffect, useRef, useState } from "react";
 
 import { callsApi, chatApi, unwrapList, type GenericRecord } from "../api/services";
+import { CallRoom } from "./CallRoom";
 import { Avatar, Button, EmptyState, Field, inputClass, Panel, SkeletonRows } from "./ui";
 import { useAsync } from "../hooks/useAsync";
+import { useRealtimeStream } from "../hooks/useRealtimeStream";
 import { dateLabel, titleCase } from "../utils/format";
 import { playTone } from "../utils/sound";
 
@@ -22,6 +24,7 @@ export function CommunicationConsole({
   const [text, setText] = useState("");
   const [status, setStatus] = useState("");
   const [recording, setRecording] = useState(false);
+  const [activeCallId, setActiveCallId] = useState("");
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const messages = useAsync(
@@ -29,6 +32,12 @@ export function CommunicationConsole({
     [conversationId, refresh],
   );
   const rows = messages.data ? unwrapList<GenericRecord>(messages.data).slice().reverse() : [];
+
+  useRealtimeStream(conversationId ? "/chat/stream" : null, { conversationId }, ({ event }) => {
+    if (["message.created", "chat.message", "message.updated", "message.deleted"].includes(event)) {
+      setRefresh((value) => value + 1);
+    }
+  });
 
   useEffect(() => {
     setText("");
@@ -110,6 +119,7 @@ export function CommunicationConsole({
       const call = await callsApi.create(conversationId, "VOICE");
       const callId = String(call.id ?? call.callId ?? "");
       if (callId) await callsApi.ring(callId, "Calling from assigned work-order conversation");
+      setActiveCallId(callId);
       playTone("ring");
       setStatus("Call started. The other participant has been invited.");
     } catch (error) {
@@ -140,6 +150,8 @@ export function CommunicationConsole({
           </Button>
         </div>
       </div>
+
+      <CallRoom callId={activeCallId || undefined} onEnded={() => setActiveCallId("")} />
 
       <div className="max-h-80 space-y-3 overflow-y-auto rounded-lg border border-slate-200 bg-slate-50 p-3">
         {messages.loading ? <SkeletonRows count={3} /> : null}

@@ -38,6 +38,10 @@ export class ApiError extends Error {
 let accessToken = localStorage.getItem("rrims.accessToken") ?? "";
 let csrfToken = localStorage.getItem("rrims.csrfToken") ?? "";
 
+export function getApiTokens() {
+  return { accessToken, csrfToken };
+}
+
 export function setApiTokens(tokens: { accessToken?: string; csrfToken?: string }) {
   if (tokens.accessToken !== undefined) {
     accessToken = tokens.accessToken;
@@ -62,6 +66,10 @@ function buildUrl(path: string, query?: Record<string, string | number | boolean
     }
   });
   return url.toString();
+}
+
+export function buildApiUrl(path: string, query?: Record<string, string | number | boolean | undefined | null>) {
+  return buildUrl(path, query);
 }
 
 export async function api<T>(
