@@ -6,8 +6,15 @@ type LoginResponse = {
   accessToken?: string;
   auth?: { accessToken?: string; csrf?: { token?: string } };
   token?: { accessToken?: string };
+  tokens?: {
+    accessToken?: string;
+    tokenType?: string;
+    expiresAt?: string | null;
+    expiresInSeconds?: number;
+  };
   session?: { csrf?: { token?: string } };
   security?: { csrf?: { token?: string } };
+  verificationRequired?: boolean;
 };
 
 function extractItems<T>(value: unknown): T[] {
@@ -30,9 +37,20 @@ export const authApi = {
       }),
     });
     const accessToken =
-      data.accessToken ?? data.auth?.accessToken ?? data.token?.accessToken ?? "";
+      data.tokens?.accessToken ??
+      data.accessToken ??
+      data.auth?.accessToken ??
+      data.token?.accessToken ??
+      "";
     const csrfToken =
       data.security?.csrf?.token ?? data.session?.csrf?.token ?? data.auth?.csrf?.token ?? "";
+    if (!accessToken) {
+      throw new Error(
+        data.verificationRequired
+          ? "Account verification is required before access is granted."
+          : "Login succeeded but the backend did not return an access token.",
+      );
+    }
     setApiTokens({ accessToken, csrfToken });
     return { user: data.user, accessToken, csrfToken, raw: data };
   },
