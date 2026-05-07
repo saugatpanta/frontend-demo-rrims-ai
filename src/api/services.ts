@@ -133,6 +133,16 @@ export const usersApi = {
     api<Paginated<User> | User[]>("/users", { query }),
 };
 
+export const profileApi = {
+  get: () => api<User & Record<string, unknown>>("/profile"),
+  activity: () => api<unknown[]>("/profile/activity"),
+  update: (body: Record<string, unknown>) =>
+    api<User & Record<string, unknown>>("/profile", {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+};
+
 export const geographyApi = {
   provinces: () => api<SelectOption[]>("/geography/provinces"),
   districts: (provinceId?: string) =>

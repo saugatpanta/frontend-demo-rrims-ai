@@ -29,7 +29,7 @@ export function RegisterPage() {
     citizenshipNumber: "",
     addressLine1: "",
     addressLine2: "",
-    preferredLanguage: "NEPALI",
+    preferredLanguage: "ne-NP",
     occupation: "",
     emergencyContactName: "",
     emergencyContactPhone: "",
@@ -98,7 +98,7 @@ export function RegisterPage() {
             <Field label="Email"><input className={inputClass} required type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} /></Field>
             <Field label="Gender"><select className={inputClass} value={form.gender} onChange={(event) => setForm({ ...form, gender: event.target.value })}><option>MALE</option><option>FEMALE</option><option>OTHER</option></select></Field>
             <Field label="Date of birth"><input className={inputClass} required type="date" value={form.dateOfBirth} onChange={(event) => setForm({ ...form, dateOfBirth: event.target.value })} /></Field>
-            <Field label="Citizenship number"><input className={inputClass} required value={form.citizenshipNumber} onChange={(event) => setForm({ ...form, citizenshipNumber: event.target.value })} /></Field>
+            <Field label="Citizenship number"><input className={inputClass} required pattern="[A-Za-z0-9-]{5,40}" title="Use only letters, numbers, and hyphen. No slash or spaces." value={form.citizenshipNumber} onChange={(event) => setForm({ ...form, citizenshipNumber: event.target.value.replace(/[^A-Za-z0-9-]/g, "") })} /></Field>
             <Field label="Occupation"><input className={inputClass} required value={form.occupation} onChange={(event) => setForm({ ...form, occupation: event.target.value })} /></Field>
             <Field label="Address line 1"><input className={inputClass} required value={form.addressLine1} onChange={(event) => setForm({ ...form, addressLine1: event.target.value })} /></Field>
             <Field label="Address line 2"><input className={inputClass} value={form.addressLine2} onChange={(event) => setForm({ ...form, addressLine2: event.target.value })} /></Field>
@@ -106,7 +106,7 @@ export function RegisterPage() {
             <Field label="District"><Select className={inputClass} value={districtId} onChange={setDistrictId} options={districts.data ?? []} /></Field>
             <Field label="Local government"><Select className={inputClass} value={localGovernmentId} onChange={setLocalGovernmentId} options={locals.data ?? []} /></Field>
             <Field label="Ward"><Select className={inputClass} value={wardId} onChange={setWardId} options={wards.data ?? []} labelKey="number" /></Field>
-            <Field label="Preferred language"><select className={inputClass} value={form.preferredLanguage} onChange={(event) => setForm({ ...form, preferredLanguage: event.target.value })}><option>NEPALI</option><option>ENGLISH</option></select></Field>
+            <Field label="Preferred language"><select className={inputClass} value={form.preferredLanguage} onChange={(event) => setForm({ ...form, preferredLanguage: event.target.value })}><option value="ne-NP">Nepali</option><option value="en-NP">English</option></select></Field>
             <Field label="Emergency contact name"><input className={inputClass} value={form.emergencyContactName} onChange={(event) => setForm({ ...form, emergencyContactName: event.target.value })} /></Field>
             <Field label="Emergency contact phone"><input className={inputClass} value={form.emergencyContactPhone} onChange={(event) => setForm({ ...form, emergencyContactPhone: event.target.value })} /></Field>
             <div />
