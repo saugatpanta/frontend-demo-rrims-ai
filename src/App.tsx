@@ -17,6 +17,7 @@ import { ProfilePage } from "./pages/ProfilePage";
 import { PublicPortalPage } from "./pages/PublicPortalPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { ReportsPage } from "./pages/ReportsPage";
+import { SettingsPage } from "./pages/SettingsPage";
 import { UsersPage } from "./pages/UsersPage";
 import { WorkOrdersPage } from "./pages/WorkOrdersPage";
 import { Button, Panel } from "./components/ui";
@@ -79,6 +80,7 @@ export function App() {
       <Route path="/app/workers" element={<Protected access={routeAccess.workers}><WorkersPage /></Protected>} />
       <Route path="/app/api-hub" element={<Protected access={routeAccess.apiHub}><ApiHubPage /></Protected>} />
       <Route path="/app/support" element={<Protected access={routeAccess.support}><SupportPage /></Protected>} />
+      <Route path="/app/settings" element={<Protected access={routeAccess.settings}><SettingsPage /></Protected>} />
       <Route path="/app/geography" element={<Protected access={routeAccess.geography}><GeographyPage /></Protected>} />
       <Route path="/app/profile" element={<Protected access={routeAccess.profile}><ProfilePage /></Protected>} />
       <Route path="*" element={<Navigate to="/" replace />} />

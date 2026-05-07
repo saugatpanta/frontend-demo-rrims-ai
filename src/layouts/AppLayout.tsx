@@ -18,6 +18,7 @@ import {
   MessageSquare,
   PhoneCall,
   ServerCog,
+  Settings,
   ShieldAlert,
   Shield,
   Siren,
@@ -62,6 +63,7 @@ const navItems: NavItem[] = [
   { group: "Operations", to: "/app/workers", label: "Workers", icon: ServerCog, permissions: ["workers.read"] },
   { group: "Operations", to: "/app/api-hub", label: "API Hub", icon: Activity, roles: ["SUPER_ADMIN"] },
   { group: "Account", to: "/app/support", label: "Support", icon: LifeBuoy },
+  { group: "Account", to: "/app/settings", label: "Settings", icon: Settings },
   { group: "Account", to: "/app/profile", label: "Profile", icon: Shield },
 ];
 

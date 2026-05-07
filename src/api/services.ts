@@ -66,6 +66,19 @@ export const authApi = {
     await api("/auth/logout", { method: "POST" });
     setApiTokens({ accessToken: "", csrfToken: "" });
   },
+  sessions: () => api<unknown[]>("/auth/sessions"),
+  revokeSession: (sessionId: string) => api(`/auth/sessions/${sessionId}`, { method: "DELETE" }),
+  changePassword: (body: Record<string, unknown>) =>
+    api("/auth/change-password", { method: "POST", body: JSON.stringify(body) }),
+  mfaStatus: () => api<Record<string, unknown>>("/auth/mfa/status"),
+  enableMfa: (password: string) =>
+    api<Record<string, unknown>>("/auth/mfa/enable", { method: "POST", body: JSON.stringify({ password }) }),
+  verifyMfa: (enrollmentId: string, code: string) =>
+    api<Record<string, unknown>>("/auth/mfa/verify", { method: "POST", body: JSON.stringify({ enrollmentId, code }) }),
+  disableMfa: (body: Record<string, unknown>) =>
+    api<Record<string, unknown>>("/auth/mfa/disable", { method: "POST", body: JSON.stringify(body) }),
+  regenerateRecoveryCodes: (body: Record<string, unknown>) =>
+    api<Record<string, unknown>>("/auth/mfa/recovery-codes/regenerate", { method: "POST", body: JSON.stringify(body) }),
   async register(body: Record<string, unknown>) {
     return api<LoginResponse>("/auth/register", {
       method: "POST",
@@ -73,6 +86,17 @@ export const authApi = {
       body: JSON.stringify(body),
     });
   },
+};
+
+export const settingsApi = {
+  notificationPreferences: () => api<Record<string, unknown>>("/notification-preferences"),
+  updateNotificationPreferences: (preferences: Array<Record<string, unknown>>) =>
+    api<Record<string, unknown>>("/notification-preferences", {
+      method: "PATCH",
+      body: JSON.stringify({ preferences }),
+    }),
+  systemSettings: () => api<Record<string, unknown>>("/system-settings"),
+  featureFlags: () => api<Record<string, unknown>>("/feature-flags"),
 };
 
 function getDeviceFingerprint() {

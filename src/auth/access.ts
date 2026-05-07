@@ -54,5 +54,6 @@ export const routeAccess = {
   workers: { permissions: ["workers.read"] },
   apiHub: { roles: ["SUPER_ADMIN"] },
   support: {},
+  settings: {},
   profile: {},
 } satisfies Record<string, AccessRule>;
