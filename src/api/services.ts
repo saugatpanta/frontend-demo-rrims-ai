@@ -70,6 +70,24 @@ export const authApi = {
   revokeSession: (sessionId: string) => api(`/auth/sessions/${sessionId}`, { method: "DELETE" }),
   changePassword: (body: Record<string, unknown>) =>
     api("/auth/change-password", { method: "POST", body: JSON.stringify(body) }),
+  forgotPassword: (email: string) =>
+    api<Record<string, unknown>>("/auth/forgot-password", {
+      method: "POST",
+      skipAuth: true,
+      body: JSON.stringify({ email }),
+    }),
+  validateResetToken: (body: Record<string, unknown>) =>
+    api<Record<string, unknown>>("/auth/validate-reset-token", {
+      method: "POST",
+      skipAuth: true,
+      body: JSON.stringify(body),
+    }),
+  resetPassword: (body: Record<string, unknown>) =>
+    api<Record<string, unknown>>("/auth/reset-password", {
+      method: "POST",
+      skipAuth: true,
+      body: JSON.stringify(body),
+    }),
   mfaStatus: () => api<Record<string, unknown>>("/auth/mfa/status"),
   enableMfa: (password: string) =>
     api<Record<string, unknown>>("/auth/mfa/enable", { method: "POST", body: JSON.stringify({ password }) }),
@@ -253,7 +271,7 @@ export function unwrapList<T>(value: T[] | Paginated<T> | unknown): T[] {
 export type GenericRecord = Record<string, unknown> & { id?: string };
 
 export const moduleApi = {
-  list: <T = GenericRecord>(path: string, query?: Record<string, string | number | undefined>) =>
+  list: <T = GenericRecord>(path: string, query?: Record<string, string | number | boolean | undefined>) =>
     api<Paginated<T> | T[]>(path, { query }),
   get: <T = GenericRecord>(path: string) => api<T>(path),
   post: <T = GenericRecord>(path: string, body?: Record<string, unknown>) =>

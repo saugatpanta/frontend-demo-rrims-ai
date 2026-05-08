@@ -68,6 +68,7 @@ function ReportDetail({ report, onClose, onChanged }: { report: Report; onClose:
   const [note, setNote] = useState("Updated from RRIMS frontend");
   const [actionMessage, setActionMessage] = useState("");
   const [actionLoading, setActionLoading] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const timeline = useAsync(() => reportsApi.timeline(report.id), [report.id]);
 
   async function run(action: "verify" | "reject" | "reopen" | "close") {
@@ -88,13 +89,12 @@ function ReportDetail({ report, onClose, onChanged }: { report: Report; onClose:
 
   async function removeReport() {
     if (String(user?.role ?? "") !== "SUPER_ADMIN") return;
-    if (!window.confirm(`Delete ${report.title}? This will soft-delete the report and preserve audit history.`)) return;
     setActionMessage("");
     setActionLoading("delete");
     try {
-      await moduleApi.remove(`/reports/${report.id}`, { reason: note, note });
+      await moduleApi.remove(`/reports/${report.id}`, { reason: note, note, trashTtlHours: 24 });
       playTone("success");
-      setActionMessage("Report deleted successfully.");
+      setActionMessage("Report moved to trash. It can be restored for 24 hours where backend policy exposes restore.");
       onChanged();
       onClose();
     } catch (error) {
@@ -133,7 +133,7 @@ function ReportDetail({ report, onClose, onChanged }: { report: Report; onClose:
           <Button variant="secondary" loading={actionLoading === "close"} onClick={() => run("close")}>Close report</Button>
           <Button variant="danger" loading={actionLoading === "reject"} onClick={() => run("reject")}><XCircle className="h-4 w-4" />Reject</Button>
           {String(user?.role ?? "") === "SUPER_ADMIN" ? (
-            <Button variant="danger" loading={actionLoading === "delete"} onClick={removeReport}><Trash2 className="h-4 w-4" />Delete</Button>
+            <Button variant="danger" loading={actionLoading === "delete"} onClick={() => setConfirmDelete(true)}><Trash2 className="h-4 w-4" />Delete</Button>
           ) : null}
         </div>
         {actionMessage ? <p className="mt-3 rounded-md bg-amber-50 p-3 text-sm font-medium text-amber-800">{actionMessage}</p> : null}
@@ -146,6 +146,21 @@ function ReportDetail({ report, onClose, onChanged }: { report: Report; onClose:
             {!timeline.loading && (!Array.isArray(timeline.data) || timeline.data.length === 0) ? <p className="text-sm text-ink-500">No timeline returned.</p> : null}
           </div>
         </div>
+        {confirmDelete ? (
+          <div className="fixed inset-0 z-[60] grid place-items-center bg-slate-950/50 p-4 backdrop-blur-sm">
+            <Panel className="max-w-lg">
+              <p className="text-sm font-black uppercase tracking-[0.14em] text-red-700">Move to trash</p>
+              <h3 className="mt-2 text-2xl font-black text-ink-900">Delete {report.title}?</h3>
+              <p className="mt-3 text-sm leading-6 text-ink-600">
+                This soft-deletes the report and preserves audit history. RRIMS trash policy keeps deleted records recoverable for 24 hours before permanent deletion policy.
+              </p>
+              <div className="mt-5 flex justify-end gap-2">
+                <Button variant="secondary" onClick={() => setConfirmDelete(false)}>Cancel</Button>
+                <Button variant="danger" loading={actionLoading === "delete"} onClick={removeReport}><Trash2 className="h-4 w-4" />Move to trash</Button>
+              </div>
+            </Panel>
+          </div>
+        ) : null}
       </div>
     </div>
   );

@@ -43,6 +43,7 @@ export function UsersPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [message, setMessage] = useState("");
   const [refresh, setRefresh] = useState(0);
+  const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
   const users = useAsync(() => usersApi.list({ limit: 50, search, status, role }), [refresh]);
   const rows = users.data ? unwrapList<User>(users.data) : [];
   const isSuperAdmin = String(user?.role ?? "") === "SUPER_ADMIN";
@@ -68,14 +69,11 @@ export function UsersPage() {
 
   async function deleteUser(row: User) {
     if (!row.id) return;
-    const label = row.fullName || row.username || row.id;
-    const confirmed = window.confirm(`Delete ${label}? This disables the account, revokes sessions, and keeps audit history.`);
-    if (!confirmed) return;
     setMessage("");
     try {
-      await usersApi.remove(row.id, "Deleted by super admin from RRIMS identity console");
+      await usersApi.remove(row.id, "Moved to trash by super admin from RRIMS identity console");
       playTone("success");
-      setMessage("User deleted and sessions revoked.");
+      setMessage("User moved to trash. Audit history is preserved and recovery is governed by the 24-hour trash policy.");
       setRefresh((value) => value + 1);
     } catch (error) {
       playTone("error");
@@ -141,12 +139,35 @@ export function UsersPage() {
               <Button variant="secondary" onClick={() => run(row.id, "reset-mfa", { revokeTrustedDevices: true })}><KeyRound className="h-4 w-4" />MFA</Button>
               <Button variant="secondary" onClick={() => run(row.id, "revoke-sessions", { scope: "ALL" })}>Sessions</Button>
               {isSuperAdmin && row.id !== user?.id ? (
-                <Button variant="danger" onClick={() => deleteUser(row)}><Trash2 className="h-4 w-4" />Delete</Button>
+                <Button variant="danger" onClick={() => setDeleteTarget(row)}><Trash2 className="h-4 w-4" />Delete</Button>
               ) : null}
             </div>
           ) },
         ]}
       />
+      {deleteTarget ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/50 p-4 backdrop-blur-sm">
+          <Panel className="max-w-lg">
+            <p className="text-sm font-black uppercase tracking-[0.14em] text-red-700">Move to trash</p>
+            <h2 className="mt-2 text-2xl font-black text-ink-900">
+              Delete {deleteTarget.fullName || deleteTarget.username || deleteTarget.id}?
+            </h2>
+            <p className="mt-3 text-sm leading-6 text-ink-600">
+              This disables the account, revokes sessions, preserves audit history, and follows the 24-hour RRIMS trash recovery policy.
+            </p>
+            <div className="mt-5 flex justify-end gap-2">
+              <Button variant="secondary" onClick={() => setDeleteTarget(null)}>Cancel</Button>
+              <Button variant="danger" onClick={async () => {
+                const target = deleteTarget;
+                setDeleteTarget(null);
+                await deleteUser(target);
+              }}>
+                <Trash2 className="h-4 w-4" />Move to trash
+              </Button>
+            </div>
+          </Panel>
+        </div>
+      ) : null}
     </>
   );
 }

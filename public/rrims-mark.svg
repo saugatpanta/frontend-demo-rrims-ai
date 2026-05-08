@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">RRIMS app icon</title>
+  <desc id="desc">A shield over civic blue and teal response bands.</desc>
+  <rect x="28" y="28" width="456" height="456" rx="82" fill="#10243e"/>
+  <path d="M28 150 484 82v108L28 260Z" fill="#174a7c"/>
+  <path d="M28 300 484 230v80L28 384Z" fill="#0f766e"/>
+  <path d="M256 104 356 146 336 292 256 384 176 292 156 146Z" fill="#fff"/>
+  <path d="M256 132 326 166 310 280 256 350 202 280 186 166Z" fill="#0f766e"/>
+  <circle cx="256" cy="184" r="22" fill="#b7791f"/>
+  <path d="m222 256 28 30 56-68" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"/>
+  <text x="256" y="446" fill="#fff" font-family="Inter, Arial, sans-serif" font-size="42" font-weight="800" text-anchor="middle">RRIMS</text>
+</svg>

@@ -1,9 +1,11 @@
-import { AlertCircle, ArrowLeft, Lock, PlayCircle, UserRound } from "lucide-react";
+import { AlertCircle, ArrowLeft, CheckCircle2, KeyRound, Lock, Mail, PlayCircle, ShieldCheck, UserRound } from "lucide-react";
+import type { ReactNode } from "react";
 import { FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { Button, Field, inputClass, Panel } from "../components/ui";
 import { useAuth } from "../context/AuthContext";
+import { authApi } from "../api/services";
 
 const demoPassword = import.meta.env.VITE_DEMO_PASSWORD ?? "Test@12345";
 const demoAccounts = [
@@ -23,6 +25,7 @@ export function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [mode, setMode] = useState<"login" | "forgot">("login");
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -48,22 +51,51 @@ export function LoginPage() {
 
   return (
     <main className="grid min-h-screen bg-slate-100 lg:grid-cols-[1.05fr_0.95fr]">
-      <section className="flex min-h-[42vh] flex-col justify-between bg-[url('https://images.unsplash.com/photo-1544735716-392fe2489ffa?auto=format&fit=crop&w=1400&q=80')] bg-cover bg-center p-6 text-white lg:min-h-screen lg:p-10">
+      <section className="relative flex min-h-[42vh] flex-col justify-between overflow-hidden bg-[url('https://images.unsplash.com/photo-1544735716-392fe2489ffa?auto=format&fit=crop&w=1400&q=80')] bg-cover bg-center p-6 text-white lg:min-h-screen lg:p-10">
+        <div className="absolute inset-0 bg-slate-950/45" />
+        <div className="absolute inset-0 surface-grid opacity-20" />
+        <div className="relative">
         <Link to="/" className="inline-flex w-max items-center gap-2 rounded-md bg-white/15 px-3 py-2 text-sm font-semibold backdrop-blur">
           <ArrowLeft className="h-4 w-4" />
           Public portal
         </Link>
-        <div className="max-w-xl pb-8">
+        </div>
+        <div className="relative max-w-xl pb-8">
+          <img src="/rrims-mark.svg" alt="" className="mb-5 h-16 w-16 rounded-lg bg-white p-1.5 shadow-2xl" />
           <p className="text-sm font-semibold uppercase tracking-wide text-civic-100">Road and resource response</p>
           <h1 className="mt-3 text-4xl font-black leading-tight sm:text-5xl">RRIMS Command Center</h1>
           <p className="mt-4 text-base leading-7 text-white/90">
             Coordinate reports, field engineers, work orders, citizen follow-up, and local government oversight from one operational workspace.
           </p>
+          <div className="mt-6 grid gap-3 sm:grid-cols-3">
+            <TrustPill icon={<ShieldCheck className="h-4 w-4" />} label="MFA ready" />
+            <TrustPill icon={<KeyRound className="h-4 w-4" />} label="Audited access" />
+            <TrustPill icon={<CheckCircle2 className="h-4 w-4" />} label="Role scoped" />
+          </div>
         </div>
       </section>
 
       <section className="flex flex-col items-center justify-center p-4 sm:p-8">
-        <Panel className="w-full max-w-md p-6">
+        <Panel className="w-full max-w-md overflow-hidden p-0">
+          <div className="grid grid-cols-2 border-b border-slate-200 bg-slate-50">
+            <button
+              type="button"
+              className={`px-4 py-3 text-sm font-black ${mode === "login" ? "bg-white text-civic-800" : "text-ink-500 hover:text-ink-900"}`}
+              onClick={() => setMode("login")}
+            >
+              Sign in
+            </button>
+            <button
+              type="button"
+              className={`px-4 py-3 text-sm font-black ${mode === "forgot" ? "bg-white text-civic-800" : "text-ink-500 hover:text-ink-900"}`}
+              onClick={() => setMode("forgot")}
+            >
+              Forgot password
+            </button>
+          </div>
+          <div className="p-6">
+          {mode === "login" ? (
+            <>
           <div className="mb-6">
             <p className="text-sm font-semibold uppercase tracking-wide text-civic-700">Secure access</p>
             <h2 className="mt-1 text-2xl font-bold text-ink-900">Sign in</h2>
@@ -93,12 +125,20 @@ export function LoginPage() {
               Sign in to RRIMS
             </Button>
           </form>
+          <button type="button" className="mt-4 text-sm font-black text-civic-700 hover:text-civic-900" onClick={() => setMode("forgot")}>
+            I forgot my password
+          </button>
           <p className="mt-5 text-center text-sm text-ink-500">
             New citizen?{" "}
             <Link to="/register" className="font-semibold text-civic-700">
               Create an account
             </Link>
           </p>
+            </>
+          ) : (
+            <ForgotPasswordPanel onBack={() => setMode("login")} />
+          )}
+          </div>
         </Panel>
 
         <Panel className="mt-4 w-full max-w-md p-5">
@@ -128,5 +168,102 @@ export function LoginPage() {
         </Panel>
       </section>
     </main>
+  );
+}
+
+function TrustPill({ icon, label }: { icon: ReactNode; label: string }) {
+  return (
+    <div className="flex items-center gap-2 rounded-md border border-white/15 bg-white/10 px-3 py-2 text-sm font-bold text-white backdrop-blur">
+      {icon}
+      {label}
+    </div>
+  );
+}
+
+function ForgotPasswordPanel({ onBack }: { onBack: () => void }) {
+  const [email, setEmail] = useState("");
+  const [otp, setOtp] = useState("");
+  const [verificationSessionId, setVerificationSessionId] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [step, setStep] = useState<"request" | "reset" | "done">("request");
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function requestReset(event: FormEvent) {
+    event.preventDefault();
+      setError("");
+      setMessage("");
+      setLoading(true);
+    try {
+      const result = await authApi.forgotPassword(email);
+      const sessionId = String(result.verificationSessionId ?? "");
+      setVerificationSessionId(sessionId);
+      setStep("reset");
+      setMessage("If the account exists, RRIMS sent a 6-digit reset code to the registered email.");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not start password reset.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function reset(event: FormEvent) {
+    event.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      await authApi.resetPassword({
+        email,
+        verificationSessionId: verificationSessionId || undefined,
+        otp,
+        newPassword,
+        confirmPassword,
+      });
+      setStep("done");
+      setMessage("Password reset complete. You can sign in with your new password.");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not reset password.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div>
+      <div className="mb-6">
+        <p className="text-sm font-semibold uppercase tracking-wide text-civic-700">Account recovery</p>
+        <h2 className="mt-1 text-2xl font-bold text-ink-900">Reset password</h2>
+        <p className="mt-2 text-sm leading-6 text-ink-500">Use your registered email and the reset code sent by the backend.</p>
+      </div>
+      {message ? <div className="mb-4 rounded-md border border-green-200 bg-green-50 p-3 text-sm font-semibold text-green-800">{message}</div> : null}
+      {error ? (
+        <div className="mb-4 flex gap-2 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          {error}
+        </div>
+      ) : null}
+      {step === "request" ? (
+        <form onSubmit={requestReset} className="space-y-4">
+          <Field label="Registered email">
+            <div className="relative">
+              <Mail className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
+              <input className={`${inputClass} pl-10`} type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
+            </div>
+          </Field>
+          <Button type="submit" className="w-full" loading={loading}>Send reset code</Button>
+        </form>
+      ) : null}
+      {step === "reset" ? (
+        <form onSubmit={reset} className="space-y-4">
+          <Field label="6-digit reset code"><input className={inputClass} value={otp} onChange={(event) => setOtp(event.target.value)} maxLength={6} required /></Field>
+          <Field label="New password"><input className={inputClass} type="password" minLength={12} value={newPassword} onChange={(event) => setNewPassword(event.target.value)} required /></Field>
+          <Field label="Confirm password"><input className={inputClass} type="password" minLength={12} value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} required /></Field>
+          <Button type="submit" className="w-full" loading={loading}>Reset password</Button>
+        </form>
+      ) : null}
+      {step === "done" ? <Button className="w-full" onClick={onBack}>Back to sign in</Button> : null}
+    </div>
   );
 }

@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   Sparkles,
   Trash2,
+  Undo2,
 } from "lucide-react";
 import { FormEvent, ReactNode, useMemo, useState } from "react";
 
@@ -42,6 +43,9 @@ type ResourcePageProps = {
   }>;
   deletePath?: (row: GenericRecord) => string | undefined;
   deleteReason?: string;
+  includeDeletedParam?: string;
+  restorePath?: (row: GenericRecord) => string | undefined;
+  purgePath?: (row: GenericRecord) => string | undefined;
 };
 
 type ResourceColumn = NonNullable<ResourcePageProps["columns"]>[number];
@@ -87,14 +91,34 @@ export function ResourcePage({
   actions = [],
   deletePath,
   deleteReason = "Deleted by super admin from RRIMS console",
+  includeDeletedParam,
+  restorePath,
+  purgePath,
 }: ResourcePageProps) {
   const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [refresh, setRefresh] = useState(0);
   const [actionMessage, setActionMessage] = useState("");
-  const records = useAsync(() => moduleApi.list<GenericRecord>(path, { limit: 25, search }), [refresh]);
+  const [showTrash, setShowTrash] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<{
+    kind: "delete" | "restore" | "purge";
+    row: GenericRecord;
+    path: string;
+    title: string;
+    body: string;
+  } | null>(null);
+  const records = useAsync(
+    () =>
+      moduleApi.list<GenericRecord>(path, {
+        limit: 25,
+        search,
+        ...(includeDeletedParam ? { [includeDeletedParam]: showTrash } : {}),
+      }),
+    [refresh, showTrash],
+  );
   const rows = records.data ? unwrapList<GenericRecord>(records.data) : [];
   const canDelete = String(user?.role ?? "") === "SUPER_ADMIN" && Boolean(deletePath);
+  const canTrash = Boolean(includeDeletedParam);
   const activeRows = rows.filter((row) => !["CLOSED", "DELETED", "REVOKED", "RESOLVED", "FAILED"].includes(recordStatus(row).toUpperCase()));
   const attentionRows = rows.filter((row) => ["FAILED", "OVERDUE", "PENDING", "UNREAD", "QUARANTINED", "BREACHED", "ESCALATED"].includes(recordStatus(row).toUpperCase()));
   const statusSummary = Object.entries(
@@ -167,6 +191,17 @@ export function ResourcePage({
                 Clear
               </Button>
             </form>
+            {canTrash ? (
+              <div className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                <Trash2 className="h-4 w-4 text-amber-700" />
+                <p className="flex-1 text-sm font-semibold text-amber-900">
+                  Trash keeps deleted records recoverable for 24 hours before permanent deletion policy.
+                </p>
+                <Button type="button" variant={showTrash ? "primary" : "secondary"} onClick={() => setShowTrash((value) => !value)}>
+                  {showTrash ? "Hide trash" : "Open trash"}
+                </Button>
+              </div>
+            ) : null}
 
             {records.error ? <p className="mt-4 rounded-md bg-amber-50 px-3 py-2 text-sm font-medium text-amber-700">{records.error.message}</p> : null}
             {actionMessage ? <p className="mt-4 rounded-md bg-civic-50 px-3 py-2 text-sm font-semibold text-civic-800">{actionMessage}</p> : null}
@@ -274,21 +309,41 @@ export function ResourcePage({
                       </Button>
                     ))}
                     {canDelete ? (
-                      <Button variant="danger" onClick={async () => {
+                      <Button variant="danger" onClick={() => {
                         const targetPath = deletePath?.(row);
                         if (!targetPath) return;
                         const label = readable(row.name ?? row.title ?? row.subject ?? row.id);
-                        if (!window.confirm(`Delete ${label}? This action is limited to super admins and audit history will remain.`)) return;
-                        setActionMessage("");
-                        try {
-                          await moduleApi.remove(targetPath, { reason: deleteReason });
-                          setActionMessage("Delete completed.");
-                          setRefresh((value) => value + 1);
-                        } catch (error) {
-                          setActionMessage(error instanceof Error ? error.message : "Delete failed.");
-                        }
+                        setConfirmAction({
+                          kind: "delete",
+                          row,
+                          path: targetPath,
+                          title: `Move ${label} to trash?`,
+                          body: "This will soft-delete the record, keep audit history, and make it recoverable from Trash for 24 hours before permanent deletion policy.",
+                        });
                       }}>
                         <Trash2 className="h-4 w-4" />Delete
+                      </Button>
+                    ) : null}
+                    {showTrash && restorePath?.(row) ? (
+                      <Button variant="secondary" onClick={() => setConfirmAction({
+                        kind: "restore",
+                        row,
+                        path: restorePath(row)!,
+                        title: `Restore ${readable(row.name ?? row.title ?? row.subject ?? row.id)}?`,
+                        body: "This will move the record out of trash and make it active again.",
+                      })}>
+                        <Undo2 className="h-4 w-4" />Restore
+                      </Button>
+                    ) : null}
+                    {showTrash && purgePath?.(row) ? (
+                      <Button variant="danger" onClick={() => setConfirmAction({
+                        kind: "purge",
+                        row,
+                        path: purgePath(row)!,
+                        title: `Permanently delete ${readable(row.name ?? row.title ?? row.subject ?? row.id)}?`,
+                        body: "This bypasses recovery. Only use after the 24-hour trash window or when policy permits immediate purge.",
+                      })}>
+                        <Trash2 className="h-4 w-4" />Delete forever
                       </Button>
                     ) : null}
                   </div>
@@ -297,6 +352,43 @@ export function ResourcePage({
             : []),
         ]}
       />
+      {confirmAction ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/50 p-4 backdrop-blur-sm">
+          <Panel className="max-w-lg">
+            <p className="text-sm font-black uppercase tracking-[0.14em] text-civic-700">Confirm action</p>
+            <h2 className="mt-2 text-2xl font-black text-ink-900">{confirmAction.title}</h2>
+            <p className="mt-3 text-sm leading-6 text-ink-600">{confirmAction.body}</p>
+            <div className="mt-5 flex flex-wrap justify-end gap-2">
+              <Button variant="secondary" onClick={() => setConfirmAction(null)}>Cancel</Button>
+              <Button
+                variant={confirmAction.kind === "restore" ? "primary" : "danger"}
+                onClick={async () => {
+                  const action = confirmAction;
+                  setConfirmAction(null);
+                  setActionMessage("");
+                  try {
+                    if (action.kind === "delete") {
+                      await moduleApi.remove(action.path, { reason: deleteReason, trashTtlHours: 24 });
+                      setActionMessage("Moved to trash. It can be restored for 24 hours.");
+                    } else if (action.kind === "restore") {
+                      await moduleApi.post(action.path, { reason: "Restored from RRIMS trash" });
+                      setActionMessage("Record restored from trash.");
+                    } else {
+                      await moduleApi.post(action.path, { reason: "Permanently deleted from RRIMS trash" });
+                      setActionMessage("Record permanently deleted.");
+                    }
+                    setRefresh((value) => value + 1);
+                  } catch (error) {
+                    setActionMessage(error instanceof Error ? error.message : "Action failed.");
+                  }
+                }}
+              >
+                {confirmAction.kind === "restore" ? "Restore" : confirmAction.kind === "purge" ? "Delete forever" : "Move to trash"}
+              </Button>
+            </div>
+          </Panel>
+        </div>
+      ) : null}
     </>
   );
 }

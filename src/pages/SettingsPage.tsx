@@ -1,4 +1,4 @@
-import { Bell, KeyRound, LockKeyhole, MonitorCog, RefreshCw, ShieldCheck } from "lucide-react";
+import { Bell, Camera, CheckCircle2, KeyRound, LockKeyhole, MapPin, Mic, MonitorCog, RefreshCw, ShieldCheck, Volume2 } from "lucide-react";
 import QRCode from "qrcode";
 import type { ReactNode } from "react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
@@ -7,7 +7,7 @@ import { authApi, settingsApi } from "../api/services";
 import { PageHeader } from "../components/PageHeader";
 import { Badge, Button, Field, inputClass, Panel } from "../components/ui";
 import { useAsync } from "../hooks/useAsync";
-import { playTone } from "../utils/sound";
+import { isSoundEnabled, playTone, setSoundEnabled } from "../utils/sound";
 
 const topics = [
   "AUTH_SECURITY",
@@ -38,6 +38,8 @@ export function SettingsPage() {
         </div>
         <div className="space-y-6">
           <NotificationPanel data={preferences.data} setMessage={setMessage} />
+          <DevicePermissionsPanel setMessage={setMessage} />
+          <DeviceSoundPanel setMessage={setMessage} />
           <SystemPanel title="System settings" icon={<MonitorCog className="h-5 w-5" />} data={system.data} />
           <SystemPanel title="Feature flags" icon={<ShieldCheck className="h-5 w-5" />} data={flags.data} />
         </div>
@@ -150,20 +152,33 @@ function MfaPanel({
   }
 
   return (
-    <Panel>
-      <div className="mb-5 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <LockKeyhole className="h-5 w-5 text-civic-700" />
-          <h2 className="text-xl font-black text-ink-900">Multi-factor authentication</h2>
+    <Panel className="overflow-hidden p-0">
+      <div className="border-b border-slate-200 bg-[linear-gradient(135deg,#ffffff,#eef7f6)] p-5">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <span className="grid h-11 w-11 place-items-center rounded-md bg-civic-700 text-white shadow-lg">
+              <LockKeyhole className="h-5 w-5" />
+            </span>
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-civic-700">Step-up security</p>
+              <h2 className="text-xl font-black text-ink-900">Multi-factor authentication</h2>
+            </div>
+          </div>
+          <Badge value={enabled ? "ENABLED" : enrollmentId ? "PENDING" : "DISABLED"} />
         </div>
-        <Badge value={enabled ? "ENABLED" : enrollmentId ? "PENDING" : "DISABLED"} />
+        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+          <MfaStep active={!enabled && !enrollmentId} done={Boolean(enrollmentId || enabled)} label="1. Verify password" />
+          <MfaStep active={Boolean(enrollmentId && !enabled)} done={enabled} label="2. Scan QR code" />
+          <MfaStep active={enabled} done={enabled} label="3. Protected login" />
+        </div>
       </div>
-      <div className="grid gap-4 md:grid-cols-2">
-        <Field label="Current password"><input className={inputClass} type="password" value={password} onChange={(event) => setPassword(event.target.value)} /></Field>
-        <Field label="6-digit code"><input className={inputClass} value={code} onChange={(event) => setCode(event.target.value)} maxLength={6} /></Field>
-      </div>
+      <div className="p-5">
+        <div className="grid gap-4 md:grid-cols-2">
+          <Field label="Current password"><input className={inputClass} type="password" value={password} onChange={(event) => setPassword(event.target.value)} /></Field>
+          <Field label="Authenticator code"><input className={inputClass} placeholder="6-digit code" value={code} onChange={(event) => setCode(event.target.value)} maxLength={6} /></Field>
+        </div>
       {enrollment ? (
-        <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+        <div className="mt-4 rounded-lg border border-civic-100 bg-civic-50/70 p-4">
           <div className="grid gap-4 md:grid-cols-[180px_1fr]">
             <div className="rounded-md border border-slate-200 bg-white p-3">
               {qrDataUrl ? (
@@ -192,7 +207,16 @@ function MfaPanel({
         <Button type="button" variant="secondary" onClick={regenerate}><RefreshCw className="h-4 w-4" />Recovery codes</Button>
         <Button type="button" variant="danger" onClick={disable}>Disable MFA</Button>
       </div>
+      </div>
     </Panel>
+  );
+}
+
+function MfaStep({ label, active, done }: { label: string; active: boolean; done: boolean }) {
+  return (
+    <div className={`rounded-md border px-3 py-2 text-sm font-black ${done ? "border-green-200 bg-green-50 text-green-800" : active ? "border-civic-200 bg-white text-civic-800" : "border-slate-200 bg-white/70 text-ink-500"}`}>
+      {label}
+    </div>
   );
 }
 
@@ -309,6 +333,173 @@ function NotificationPanel({
       </div>
       <pre className="mt-4 max-h-48 overflow-auto rounded-md bg-slate-950 p-3 text-xs text-white">{JSON.stringify(data ?? {}, null, 2)}</pre>
       <Button className="mt-4" onClick={save}>Apply standard government policy</Button>
+    </Panel>
+  );
+}
+
+type PermissionStatusValue = "granted" | "prompt" | "denied" | "default" | "unsupported";
+
+const devicePermissions = [
+  {
+    key: "camera",
+    label: "Camera",
+    body: "Required for field evidence photos and video calls.",
+    icon: Camera,
+    request: () => navigator.mediaDevices.getUserMedia({ video: true }).then((stream) => stream.getTracks().forEach((track) => track.stop())),
+  },
+  {
+    key: "microphone",
+    label: "Microphone",
+    body: "Required for voice notes and call rooms.",
+    icon: Mic,
+    request: () => navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => stream.getTracks().forEach((track) => track.stop())),
+  },
+  {
+    key: "geolocation",
+    label: "Location",
+    body: "Required for map pins, incident location, and field updates.",
+    icon: MapPin,
+    request: () =>
+      new Promise<void>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(() => resolve(), reject, { enableHighAccuracy: true, timeout: 10000 });
+      }),
+  },
+  {
+    key: "notifications",
+    label: "Notifications",
+    body: "Required for live alerts and unread incident updates.",
+    icon: Bell,
+    request: async () => {
+      if (typeof Notification === "undefined") throw new Error("Notifications are not supported in this browser.");
+      const result = await Notification.requestPermission();
+      if (result !== "granted") throw new Error("Notification permission was not granted.");
+    },
+  },
+] as const;
+
+function DevicePermissionsPanel({ setMessage }: { setMessage: (message: string) => void }) {
+  const [statuses, setStatuses] = useState<Record<string, PermissionStatusValue>>({});
+
+  async function refresh() {
+    const next: Record<string, PermissionStatusValue> = {};
+    await Promise.all(
+      devicePermissions.map(async (permission) => {
+        if (permission.key === "notifications") {
+          next[permission.key] = typeof Notification === "undefined" ? "unsupported" : Notification.permission;
+          return;
+        }
+        if (permission.key === "geolocation" && !("geolocation" in navigator)) {
+          next[permission.key] = "unsupported";
+          return;
+        }
+        if ((permission.key === "camera" || permission.key === "microphone") && !navigator.mediaDevices?.getUserMedia) {
+          next[permission.key] = "unsupported";
+          return;
+        }
+        if (!navigator.permissions?.query) {
+          next[permission.key] = "prompt";
+          return;
+        }
+        try {
+          const status = await navigator.permissions.query({ name: permission.key as PermissionName });
+          next[permission.key] = status.state;
+        } catch {
+          next[permission.key] = "prompt";
+        }
+      }),
+    );
+    setStatuses(next);
+  }
+
+  useEffect(() => {
+    void refresh();
+  }, []);
+
+  async function requestPermission(permission: (typeof devicePermissions)[number]) {
+    try {
+      await permission.request();
+      await refresh();
+      setMessage(`${permission.label} permission is ready.`);
+      playTone("success");
+    } catch (error) {
+      await refresh();
+      setMessage(error instanceof Error ? error.message : `${permission.label} permission was not granted.`);
+      playTone("error");
+    }
+  }
+
+  return (
+    <Panel>
+      <div className="mb-5 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <CheckCircle2 className="h-5 w-5 text-civic-700" />
+          <h2 className="text-xl font-black text-ink-900">System permissions</h2>
+        </div>
+        <Button type="button" variant="secondary" onClick={() => void refresh()}><RefreshCw className="h-4 w-4" />Refresh</Button>
+      </div>
+      <div className="grid gap-3">
+        {devicePermissions.map((permission) => {
+          const Icon = permission.icon;
+          const status = statuses[permission.key] ?? "prompt";
+          return (
+            <div key={permission.key} className="rounded-lg border border-slate-200 bg-white p-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex gap-3">
+                  <span className="grid h-10 w-10 place-items-center rounded-md bg-civic-50 text-civic-700">
+                    <Icon className="h-5 w-5" />
+                  </span>
+                  <span>
+                    <span className="block text-sm font-black text-ink-900">{permission.label}</span>
+                    <span className="mt-1 block text-sm leading-6 text-ink-500">{permission.body}</span>
+                  </span>
+                </div>
+                <span className={`rounded-full px-2.5 py-1 text-xs font-black ${status === "granted" ? "bg-green-50 text-green-800" : status === "denied" ? "bg-red-50 text-red-800" : "bg-amber-50 text-amber-800"}`}>
+                  {status}
+                </span>
+              </div>
+              <Button className="mt-3" type="button" variant="secondary" disabled={status === "unsupported"} onClick={() => void requestPermission(permission)}>
+                Allow {permission.label}
+              </Button>
+            </div>
+          );
+        })}
+      </div>
+    </Panel>
+  );
+}
+
+function DeviceSoundPanel({ setMessage }: { setMessage: (message: string) => void }) {
+  const [enabled, setEnabled] = useState(() => isSoundEnabled());
+
+  function toggle(value: boolean) {
+    setSoundEnabled(value);
+    setEnabled(value);
+    if (value) playTone("success");
+    setMessage(value ? "App sounds enabled for this browser." : "App sounds muted for this browser.");
+  }
+
+  return (
+    <Panel>
+      <div className="mb-5 flex items-center gap-3">
+        <Volume2 className="h-5 w-5 text-civic-700" />
+        <h2 className="text-xl font-black text-ink-900">App sound</h2>
+      </div>
+      <label className="flex items-start justify-between gap-4 rounded-lg border border-slate-200 p-4">
+        <span>
+          <span className="block text-sm font-black text-ink-900">Sound effects</span>
+          <span className="mt-1 block text-sm text-ink-500">Rings, success tones, errors, and new notification chimes.</span>
+        </span>
+        <input
+          className="mt-1 h-5 w-5 accent-civic-700"
+          type="checkbox"
+          checked={enabled}
+          onChange={(event) => toggle(event.target.checked)}
+        />
+      </label>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Button type="button" variant="secondary" onClick={() => playTone("notification")}><Bell className="h-4 w-4" />Test alert</Button>
+        <Button type="button" variant="secondary" onClick={() => playTone("ring")}><Volume2 className="h-4 w-4" />Test ring</Button>
+      </div>
     </Panel>
   );
 }

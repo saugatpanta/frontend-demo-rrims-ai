@@ -24,6 +24,9 @@ export function FilesPage() {
       ]}
       deletePath={(row) => row.id || row.fileId ? `/files/${row.id ?? row.fileId}` : undefined}
       deleteReason="Deleted by super admin from RRIMS file console"
+      includeDeletedParam="includeDeleted"
+      restorePath={(row) => row.id || row.fileId ? `/files/${row.id ?? row.fileId}/restore` : undefined}
+      purgePath={(row) => row.id || row.fileId ? `/files/${row.id ?? row.fileId}/purge` : undefined}
     />
   );
 }

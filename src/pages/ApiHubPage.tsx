@@ -1,4 +1,4 @@
-import { Play, Search } from "lucide-react";
+import { Play, Search, Trash2 } from "lucide-react";
 import { FormEvent, useMemo, useState } from "react";
 
 import { moduleApi } from "../api/services";
@@ -13,6 +13,7 @@ export function ApiHubPage() {
   const [path, setPath] = useState("");
   const [body, setBody] = useState("{}");
   const [result, setResult] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const rows = useMemo(
     () => apiCatalog.filter((endpoint) => `${endpoint.group} ${endpoint.method} ${endpoint.path}`.toLowerCase().includes(query.toLowerCase())),
     [query],
@@ -28,6 +29,10 @@ export function ApiHubPage() {
   async function run(event: FormEvent) {
     event.preventDefault();
     if (!selected) return;
+    if (selected.method === "DELETE" && !confirmDelete) {
+      setConfirmDelete(true);
+      return;
+    }
     try {
       const parsed = body.trim() ? JSON.parse(body) as Record<string, unknown> : {};
       const response =
@@ -38,6 +43,8 @@ export function ApiHubPage() {
       setResult(JSON.stringify(response, null, 2));
     } catch (error) {
       setResult(error instanceof Error ? error.message : String(error));
+    } finally {
+      setConfirmDelete(false);
     }
   }
 
@@ -68,11 +75,44 @@ export function ApiHubPage() {
           <form onSubmit={run} className="space-y-4">
             <Field label="Path"><input className={inputClass} value={path} onChange={(event) => setPath(event.target.value)} placeholder="/reports" /></Field>
             <Field label="JSON body"><textarea className={`${inputClass} h-40 py-3 font-mono`} value={body} onChange={(event) => setBody(event.target.value)} /></Field>
-            <Button disabled={!selected}>Execute</Button>
+            <Button disabled={!selected} variant={selected?.method === "DELETE" ? "danger" : "primary"}>
+              {selected?.method === "DELETE" ? <Trash2 className="h-4 w-4" /> : null}
+              Execute
+            </Button>
           </form>
           <pre className="mt-4 max-h-96 overflow-auto rounded-lg bg-slate-950 p-4 text-xs text-slate-100">{result || "Select an endpoint to execute."}</pre>
         </Panel>
       </div>
+      {confirmDelete ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/50 p-4 backdrop-blur-sm">
+          <Panel className="max-w-lg">
+            <p className="text-sm font-black uppercase tracking-[0.14em] text-red-700">Confirm delete API</p>
+            <h2 className="mt-2 text-2xl font-black text-ink-900">Execute DELETE request?</h2>
+            <p className="mt-3 text-sm leading-6 text-ink-600">
+              RRIMS delete operations should move records to trash for 24 hours where the backend module supports recovery. Check the path and request body before continuing.
+            </p>
+            <div className="mt-5 flex justify-end gap-2">
+              <Button variant="secondary" onClick={() => setConfirmDelete(false)}>Cancel</Button>
+              <Button variant="danger" onClick={async () => {
+                const syntheticEvent = { preventDefault() {} } as FormEvent;
+                setConfirmDelete(true);
+                try {
+                  const parsed = body.trim() ? JSON.parse(body) as Record<string, unknown> : {};
+                  const response = await moduleApi.remove(path, { ...parsed, trashTtlHours: 24 });
+                  setResult(JSON.stringify(response, null, 2));
+                } catch (error) {
+                  setResult(error instanceof Error ? error.message : String(error));
+                } finally {
+                  setConfirmDelete(false);
+                }
+                void syntheticEvent;
+              }}>
+                <Trash2 className="h-4 w-4" />Execute DELETE
+              </Button>
+            </div>
+          </Panel>
+        </div>
+      ) : null}
     </>
   );
 }

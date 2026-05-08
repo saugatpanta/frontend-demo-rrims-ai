@@ -36,6 +36,7 @@ import { useBrowserNotifications } from "../hooks/useBrowserNotifications";
 import { useRealtimeStream } from "../hooks/useRealtimeStream";
 import { canAccess, governmentRoles, managementRoles, type AccessRule } from "../auth/access";
 import type { User } from "../api/types";
+import { playTone } from "../utils/sound";
 
 type NavItem = {
   group: string;
@@ -115,6 +116,7 @@ export function AppLayout({ children }: PropsWithChildren) {
     if (Number.isFinite(count)) {
       setUnreadNotifications((previous) => {
         if (previous !== null && count > previous) {
+          playTone("notification");
           browserNotifications.notify("New RRIMS notification", {
             body: `You have ${count} unread notification${count === 1 ? "" : "s"}.`,
             tag: "rrims-notifications",
@@ -139,7 +141,7 @@ export function AppLayout({ children }: PropsWithChildren) {
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="grid h-12 w-12 place-items-center rounded-lg border border-white/15 bg-white text-civic-700 shadow-[0_16px_34px_rgba(20,184,166,0.2)]">
-                <Siren className="h-6 w-6" />
+                <img src="/rrims-mark.svg" alt="" className="h-9 w-9" />
               </div>
               <div>
                 <p className="text-lg font-black leading-tight">RRIMS</p>
@@ -256,7 +258,46 @@ export function AppLayout({ children }: PropsWithChildren) {
           </div>
         </header>
 
-        <main className="mx-auto max-w-[1480px] p-4 lg:p-8">{children}</main>
+        <main className="mx-auto max-w-[1480px] p-4 lg:p-8">
+          <section className="mb-5 overflow-hidden rounded-lg border border-white/70 bg-white/[0.86] shadow-[0_1px_2px_rgba(15,23,42,0.05),0_18px_48px_rgba(15,23,42,0.08)] ring-1 ring-slate-900/[0.03] backdrop-blur">
+            <div className="grid gap-px bg-slate-200/70 md:grid-cols-3">
+              <div className="bg-white/90 p-4">
+                <div className="flex items-center gap-3">
+                  <span className="grid h-10 w-10 place-items-center rounded-md bg-civic-50 text-civic-700 ring-1 ring-civic-100">
+                    <ServerCog className="h-5 w-5" />
+                  </span>
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.14em] text-ink-500">API layer</p>
+                    <p className="mt-1 text-sm font-black text-ink-900">342 routes integrated</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white/90 p-4">
+                <div className="flex items-center gap-3">
+                  <span className="grid h-10 w-10 place-items-center rounded-md bg-blue-50 text-blue-700 ring-1 ring-blue-100">
+                    <Shield className="h-5 w-5" />
+                  </span>
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.14em] text-ink-500">Governance</p>
+                    <p className="mt-1 text-sm font-black text-ink-900">Role, policy, audit, MFA</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white/90 p-4">
+                <div className="flex items-center gap-3">
+                  <span className="grid h-10 w-10 place-items-center rounded-md bg-amber-50 text-amber-700 ring-1 ring-amber-100">
+                    <PhoneCall className="h-5 w-5" />
+                  </span>
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.14em] text-ink-500">Live desk</p>
+                    <p className="mt-1 text-sm font-black text-ink-900">Calls, chat, alerts, sound</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+          {children}
+        </main>
       </div>
       {commandOpen ? (
         <div className="fixed inset-0 z-50 bg-slate-950/50 p-4 backdrop-blur-sm" onMouseDown={() => setCommandOpen(false)}>
