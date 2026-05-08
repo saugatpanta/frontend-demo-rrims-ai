@@ -20,7 +20,8 @@ const topics = [
 
 export function SettingsPage() {
   const mfa = useAsync(() => authApi.mfaStatus(), []);
-  const sessions = useAsync(() => authApi.sessions(), []);
+  const [sessionsRefresh, setSessionsRefresh] = useState(0);
+  const sessions = useAsync(() => authApi.sessions(), [sessionsRefresh]);
   const preferences = useAsync(() => settingsApi.notificationPreferences(), []);
   const system = useAsync(() => settingsApi.systemSettings(), []);
   const flags = useAsync(() => settingsApi.featureFlags(), []);
@@ -170,7 +171,7 @@ export function SettingsPage() {
       <SettingsModal title={modalTitle(activePanel)} open={activePanel !== null} onClose={() => setActivePanel(null)}>
         {activePanel === "mfa" ? <MfaPanel data={mfa.data} onChanged={() => mfa.setData(null)} setMessage={setMessage} /> : null}
         {activePanel === "password" ? <PasswordPanel setMessage={setMessage} /> : null}
-        {activePanel === "sessions" ? <SessionsPanel data={sessions.data} loading={sessions.loading} reload={() => sessions.setData(null)} setMessage={setMessage} /> : null}
+        {activePanel === "sessions" ? <SessionsPanel data={sessions.data} loading={sessions.loading} reload={() => setSessionsRefresh((value) => value + 1)} setMessage={setMessage} /> : null}
         {activePanel === "notifications" ? <NotificationPanel data={preferences.data} setMessage={setMessage} /> : null}
         {activePanel === "permissions" ? <DevicePermissionsPanel setMessage={setMessage} /> : null}
         {activePanel === "sound" ? <DeviceSoundPanel enabled={soundEnabled} onToggle={toggleSound} /> : null}
