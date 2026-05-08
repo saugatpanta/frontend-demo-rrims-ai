@@ -1,4 +1,4 @@
-import { Bell, Camera, CheckCircle2, KeyRound, LockKeyhole, MapPin, Mic, MonitorCog, RefreshCw, ShieldCheck, Volume2 } from "lucide-react";
+import { Bell, Camera, CheckCircle2, Database, KeyRound, LockKeyhole, MapPin, Mic, MonitorCog, RefreshCw, ShieldCheck, SlidersHorizontal, Smartphone, Volume2, X } from "lucide-react";
 import QRCode from "qrcode";
 import type { ReactNode } from "react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
@@ -25,26 +25,275 @@ export function SettingsPage() {
   const system = useAsync(() => settingsApi.systemSettings(), []);
   const flags = useAsync(() => settingsApi.featureFlags(), []);
   const [message, setMessage] = useState("");
+  const [activePanel, setActivePanel] = useState<SettingsPanelKey | null>(null);
+  const [soundEnabled, setSoundEnabledState] = useState(() => isSoundEnabled());
+  const mfaStatus = (mfa.data?.status ?? {}) as Record<string, unknown>;
+  const mfaEnabled = Boolean(mfaStatus.enabled ?? mfaStatus.enabledAt);
+  const sessionItems = (sessions.data && typeof sessions.data === "object" && "items" in sessions.data)
+    ? (sessions.data as { items?: unknown[] }).items
+    : null;
+  const sessionCount = Array.isArray(sessions.data) ? sessions.data.length : Array.isArray(sessionItems) ? sessionItems.length : 0;
+
+  function toggleSound(value: boolean) {
+    setSoundEnabled(value);
+    setSoundEnabledState(value);
+    if (value) playTone("success");
+    setMessage(value ? "App sounds enabled for this browser." : "App sounds muted for this browser.");
+  }
 
   return (
     <>
-      <PageHeader title="Settings & Security" eyebrow="MFA, sessions, notifications, and platform configuration" />
+      <PageHeader title="Settings & Security" eyebrow="Premium control center for identity, permissions, sound, and platform policies" />
       {message ? <Panel className="mb-5 bg-civic-50 text-sm font-semibold text-civic-800">{message}</Panel> : null}
-      <div className="grid gap-6 xl:grid-cols-[1fr_0.95fr]">
-        <div className="space-y-6">
-          <MfaPanel data={mfa.data} onChanged={() => mfa.setData(null)} setMessage={setMessage} />
-          <PasswordPanel setMessage={setMessage} />
-          <SessionsPanel data={sessions.data} loading={sessions.loading} reload={() => sessions.setData(null)} setMessage={setMessage} />
+      <section className="mb-6 overflow-hidden rounded-lg border border-white/70 bg-slate-950 text-white shadow-2xl">
+        <div className="surface-grid bg-[linear-gradient(135deg,#08111f,#0f766e_55%,#123a6f)] p-6">
+          <div className="grid gap-6 lg:grid-cols-[1fr_22rem] lg:items-end">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-civic-100">Operator preferences</p>
+              <h2 className="mt-2 text-3xl font-black leading-tight">Advanced settings center</h2>
+              <p className="mt-3 max-w-3xl text-sm font-semibold leading-6 text-slate-100">
+                Open each section in a secure popup. The page stays clean while MFA, permissions,
+                notifications, sessions, sound, and platform policy controls remain one click away.
+              </p>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <StatusChip label="MFA" value={mfaEnabled ? "On" : "Off"} />
+              <StatusChip label="Sessions" value={String(sessionCount)} />
+              <StatusChip label="Sound" value={soundEnabled ? "On" : "Off"} />
+            </div>
+          </div>
         </div>
-        <div className="space-y-6">
-          <NotificationPanel data={preferences.data} setMessage={setMessage} />
-          <DevicePermissionsPanel setMessage={setMessage} />
-          <DeviceSoundPanel setMessage={setMessage} />
-          <SystemPanel title="System settings" icon={<MonitorCog className="h-5 w-5" />} data={system.data} />
-          <SystemPanel title="Feature flags" icon={<ShieldCheck className="h-5 w-5" />} data={flags.data} />
-        </div>
+      </section>
+
+      <div className="grid gap-4 xl:grid-cols-3">
+        <SettingsCard
+          title="Multi-factor authentication"
+          eyebrow="Identity"
+          body="Enroll, scan QR, verify code, disable MFA, and regenerate recovery codes."
+          icon={<LockKeyhole className="h-5 w-5" />}
+          tone="teal"
+          status={mfaEnabled ? "Enabled" : "Disabled"}
+          checked={mfaEnabled}
+          onToggle={() => setActivePanel("mfa")}
+          onOpen={() => setActivePanel("mfa")}
+        />
+        <SettingsCard
+          title="Password security"
+          eyebrow="Credentials"
+          body="Change the account password using protected backend auth endpoints."
+          icon={<KeyRound className="h-5 w-5" />}
+          tone="blue"
+          status="Protected"
+          checked
+          onToggle={() => setActivePanel("password")}
+          onOpen={() => setActivePanel("password")}
+        />
+        <SettingsCard
+          title="Active sessions"
+          eyebrow="Devices"
+          body="Review signed-in browsers and revoke sessions from unknown devices."
+          icon={<Smartphone className="h-5 w-5" />}
+          tone="amber"
+          status={`${sessionCount} active`}
+          checked={sessionCount > 0}
+          onToggle={() => setActivePanel("sessions")}
+          onOpen={() => setActivePanel("sessions")}
+        />
+        <SettingsCard
+          title="Notification policy"
+          eyebrow="Alerts"
+          body="Control government alert topics and apply the standard notification policy."
+          icon={<Bell className="h-5 w-5" />}
+          tone="red"
+          status="Policy"
+          checked
+          onToggle={() => setActivePanel("notifications")}
+          onOpen={() => setActivePanel("notifications")}
+        />
+        <SettingsCard
+          title="System permissions"
+          eyebrow="Browser access"
+          body="Camera, microphone, location, and notification permissions for field work."
+          icon={<CheckCircle2 className="h-5 w-5" />}
+          tone="green"
+          status="Review"
+          checked
+          onToggle={() => setActivePanel("permissions")}
+          onOpen={() => setActivePanel("permissions")}
+        />
+        <SettingsCard
+          title="App sound"
+          eyebrow="Audio"
+          body="Enable alert chimes, success tones, errors, and call rings for this browser."
+          icon={<Volume2 className="h-5 w-5" />}
+          tone="blue"
+          status={soundEnabled ? "Enabled" : "Muted"}
+          checked={soundEnabled}
+          onToggle={toggleSound}
+          onOpen={() => setActivePanel("sound")}
+        />
+        <SettingsCard
+          title="System settings"
+          eyebrow="Platform"
+          body="Inspect backend configuration returned by the settings API."
+          icon={<MonitorCog className="h-5 w-5" />}
+          tone="teal"
+          status={system.loading ? "Loading" : "Ready"}
+          checked={Boolean(system.data)}
+          onToggle={() => setActivePanel("system")}
+          onOpen={() => setActivePanel("system")}
+        />
+        <SettingsCard
+          title="Feature flags"
+          eyebrow="Release control"
+          body="Review enabled feature flags and policy switches from the backend."
+          icon={<ShieldCheck className="h-5 w-5" />}
+          tone="amber"
+          status={flags.loading ? "Loading" : "Ready"}
+          checked={Boolean(flags.data)}
+          onToggle={() => setActivePanel("flags")}
+          onOpen={() => setActivePanel("flags")}
+        />
+        <SettingsCard
+          title="API configuration"
+          eyebrow="Connected apps"
+          body="Settings APIs, security APIs, permissions, and notification APIs are connected."
+          icon={<Database className="h-5 w-5" />}
+          tone="green"
+          status="Connected"
+          checked
+          onToggle={() => setActivePanel("system")}
+          onOpen={() => setActivePanel("system")}
+        />
       </div>
+
+      <SettingsModal title={modalTitle(activePanel)} open={activePanel !== null} onClose={() => setActivePanel(null)}>
+        {activePanel === "mfa" ? <MfaPanel data={mfa.data} onChanged={() => mfa.setData(null)} setMessage={setMessage} /> : null}
+        {activePanel === "password" ? <PasswordPanel setMessage={setMessage} /> : null}
+        {activePanel === "sessions" ? <SessionsPanel data={sessions.data} loading={sessions.loading} reload={() => sessions.setData(null)} setMessage={setMessage} /> : null}
+        {activePanel === "notifications" ? <NotificationPanel data={preferences.data} setMessage={setMessage} /> : null}
+        {activePanel === "permissions" ? <DevicePermissionsPanel setMessage={setMessage} /> : null}
+        {activePanel === "sound" ? <DeviceSoundPanel enabled={soundEnabled} onToggle={toggleSound} /> : null}
+        {activePanel === "system" ? <SystemPanel title="System settings" icon={<MonitorCog className="h-5 w-5" />} data={system.data} /> : null}
+        {activePanel === "flags" ? <SystemPanel title="Feature flags" icon={<ShieldCheck className="h-5 w-5" />} data={flags.data} /> : null}
+      </SettingsModal>
     </>
+  );
+}
+
+type SettingsPanelKey = "mfa" | "password" | "sessions" | "notifications" | "permissions" | "sound" | "system" | "flags";
+
+function modalTitle(key: SettingsPanelKey | null) {
+  const titles: Record<SettingsPanelKey, string> = {
+    mfa: "Multi-factor authentication",
+    password: "Password security",
+    sessions: "Active sessions",
+    notifications: "Notification policy",
+    permissions: "System permissions",
+    sound: "App sound",
+    system: "System settings",
+    flags: "Feature flags",
+  };
+  return key ? titles[key] : "";
+}
+
+function StatusChip({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-white/15 bg-white/10 p-3 text-center shadow-inner">
+      <p className="text-[11px] font-black uppercase tracking-[0.14em] text-civic-100">{label}</p>
+      <p className="mt-1 text-lg font-black text-white">{value}</p>
+    </div>
+  );
+}
+
+function SettingsCard({
+  title,
+  eyebrow,
+  body,
+  icon,
+  tone,
+  status,
+  checked,
+  onToggle,
+  onOpen,
+}: {
+  title: string;
+  eyebrow: string;
+  body: string;
+  icon: ReactNode;
+  tone: "teal" | "blue" | "amber" | "red" | "green";
+  status: string;
+  checked: boolean;
+  onToggle: (checked: boolean) => void;
+  onOpen: () => void;
+}) {
+  const tones = {
+    teal: "bg-civic-50 text-civic-700 ring-civic-100",
+    blue: "bg-blue-50 text-blue-700 ring-blue-100",
+    amber: "bg-amber-50 text-amber-700 ring-amber-100",
+    red: "bg-red-50 text-red-700 ring-red-100",
+    green: "bg-green-50 text-green-700 ring-green-100",
+  };
+
+  return (
+    <Panel className="group relative overflow-hidden p-0">
+      <button type="button" className="block w-full whitespace-normal p-5 text-left" onClick={onOpen}>
+        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-civic-700 via-blue-700 to-amber-500 opacity-80" />
+        <div className="flex items-start justify-between gap-4">
+          <span className={`grid h-12 w-12 place-items-center rounded-md ring-1 ${tones[tone]}`}>{icon}</span>
+          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-ink-600">{status}</span>
+        </div>
+        <p className="mt-5 text-xs font-black uppercase tracking-[0.14em] text-civic-700">{eyebrow}</p>
+        <h2 className="mt-1 text-xl font-black leading-tight text-ink-900">{title}</h2>
+        <p className="mt-3 min-h-12 text-sm font-semibold leading-6 text-ink-500">{body}</p>
+      </button>
+      <div className="flex items-center justify-between border-t border-slate-200/80 bg-slate-50/80 px-5 py-3">
+        <button type="button" className="inline-flex items-center gap-2 text-sm font-black text-civic-700" onClick={onOpen}>
+          <SlidersHorizontal className="h-4 w-4" />
+          Configure
+        </button>
+        <label className="relative inline-flex cursor-pointer items-center">
+          <input
+            type="checkbox"
+            className="peer sr-only"
+            checked={checked}
+            onChange={(event) => onToggle(event.target.checked)}
+          />
+          <span className="h-6 w-11 rounded-full bg-slate-300 transition peer-checked:bg-civic-700" />
+          <span className="absolute left-1 h-4 w-4 rounded-full bg-white shadow transition peer-checked:translate-x-5" />
+        </label>
+      </div>
+    </Panel>
+  );
+}
+
+function SettingsModal({
+  title,
+  open,
+  onClose,
+  children,
+}: {
+  title: string;
+  open: boolean;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/60 p-4 backdrop-blur-sm" onMouseDown={onClose}>
+      <div className="mx-auto my-8 max-w-5xl overflow-hidden rounded-lg border border-white/70 bg-white shadow-2xl" onMouseDown={(event) => event.stopPropagation()}>
+        <div className="flex items-center justify-between gap-4 border-b border-slate-200 bg-[linear-gradient(135deg,#ffffff,#eef7f6)] px-5 py-4">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-civic-700">Settings popup</p>
+            <h2 className="text-xl font-black text-ink-900">{title}</h2>
+          </div>
+          <button type="button" className="grid h-10 w-10 place-items-center rounded-md bg-slate-100 text-ink-700 hover:bg-slate-200" onClick={onClose} aria-label="Close settings popup">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="max-h-[78vh] overflow-y-auto bg-slate-50 p-5">{children}</div>
+      </div>
+    </div>
   );
 }
 
@@ -468,16 +717,7 @@ function DevicePermissionsPanel({ setMessage }: { setMessage: (message: string) 
   );
 }
 
-function DeviceSoundPanel({ setMessage }: { setMessage: (message: string) => void }) {
-  const [enabled, setEnabled] = useState(() => isSoundEnabled());
-
-  function toggle(value: boolean) {
-    setSoundEnabled(value);
-    setEnabled(value);
-    if (value) playTone("success");
-    setMessage(value ? "App sounds enabled for this browser." : "App sounds muted for this browser.");
-  }
-
+function DeviceSoundPanel({ enabled, onToggle }: { enabled: boolean; onToggle: (value: boolean) => void }) {
   return (
     <Panel>
       <div className="mb-5 flex items-center gap-3">
@@ -493,7 +733,7 @@ function DeviceSoundPanel({ setMessage }: { setMessage: (message: string) => voi
           className="mt-1 h-5 w-5 accent-civic-700"
           type="checkbox"
           checked={enabled}
-          onChange={(event) => toggle(event.target.checked)}
+          onChange={(event) => onToggle(event.target.checked)}
         />
       </label>
       <div className="mt-4 flex flex-wrap gap-2">
