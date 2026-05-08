@@ -168,6 +168,11 @@ export const reportsApi = {
       body: JSON.stringify({ status, note }),
     }),
   timeline: (id: string) => api<unknown[]>(`/reports/${id}/timeline`),
+  addAttachment: (id: string, body: Record<string, unknown>) =>
+    api<Record<string, unknown>>(`/reports/${id}/attachments`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
 };
 
 export const workOrdersApi = {

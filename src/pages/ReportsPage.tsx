@@ -1,4 +1,4 @@
-import { CheckCircle2, Eye, Plus, RotateCcw, Search, Trash2, XCircle } from "lucide-react";
+import { Camera, CheckCircle2, Eye, Image, Paperclip, Plus, RotateCcw, Search, Trash2, XCircle } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 
 import { geographyApi, moduleApi, reportsApi, unwrapList } from "../api/services";
@@ -70,6 +70,7 @@ function ReportDetail({ report, onClose, onChanged }: { report: Report; onClose:
   const [actionLoading, setActionLoading] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const timeline = useAsync(() => reportsApi.timeline(report.id), [report.id]);
+  const [evidenceFile, setEvidenceFile] = useState<File | null>(null);
 
   async function run(action: "verify" | "reject" | "reopen" | "close") {
     setActionMessage("");
@@ -105,6 +106,29 @@ function ReportDetail({ report, onClose, onChanged }: { report: Report; onClose:
     }
   }
 
+  async function uploadEvidence() {
+    if (!evidenceFile) return;
+    setActionMessage("");
+    setActionLoading("evidence");
+    try {
+      await reportsApi.addAttachment(report.id, {
+        fileName: evidenceFile.name,
+        mimeType: evidenceFile.type || "application/octet-stream",
+        mediaType: mediaTypeFor(evidenceFile),
+        contentBase64: await fileToBase64(evidenceFile),
+      });
+      playTone("success");
+      setActionMessage("Evidence uploaded successfully.");
+      setEvidenceFile(null);
+      onChanged();
+    } catch (error) {
+      playTone("error");
+      setActionMessage(error instanceof Error ? error.message : "Evidence upload failed.");
+    } finally {
+      setActionLoading("");
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/40 p-4 backdrop-blur-sm">
       <div className="ml-auto h-full max-w-2xl overflow-y-auto rounded-lg bg-white p-5 shadow-soft">
@@ -122,6 +146,28 @@ function ReportDetail({ report, onClose, onChanged }: { report: Report; onClose:
           <Badge value={report.priority} />
         </div>
         <p className="mt-5 rounded-lg bg-slate-50 p-4 text-sm leading-6 text-ink-700">{report.description ?? "No description returned."}</p>
+        <div className="mt-5 rounded-lg border border-civic-100 bg-civic-50/70 p-4">
+          <div className="flex items-start gap-3">
+            <span className="grid h-10 w-10 place-items-center rounded-md bg-white text-civic-700 ring-1 ring-civic-100">
+              <Camera className="h-5 w-5" />
+            </span>
+            <div className="flex-1">
+              <p className="font-black text-ink-900">Evidence photo or file</p>
+              <p className="mt-1 text-sm font-semibold text-ink-500">Attach pictures, video, audio, or documents to this report.</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-md border border-slate-300/80 bg-white px-4 text-sm font-black text-ink-700 hover:bg-civic-50">
+                  <Paperclip className="h-4 w-4" />
+                  {evidenceFile ? evidenceFile.name : "Choose evidence"}
+                  <input className="hidden" type="file" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" onChange={(event) => setEvidenceFile(event.target.files?.[0] ?? null)} />
+                </label>
+                <Button type="button" loading={actionLoading === "evidence"} disabled={!evidenceFile} onClick={uploadEvidence}>
+                  <Image className="h-4 w-4" />
+                  Upload evidence
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
         <div className="mt-4">
           <Field label="Action note">
             <textarea className={`${inputClass} h-24 py-3`} value={note} onChange={(event) => setNote(event.target.value)} />
@@ -169,6 +215,7 @@ function ReportDetail({ report, onClose, onChanged }: { report: Report; onClose:
 function CreateReport({ onCreated }: { onCreated: () => void }) {
   const categories = useAsync(() => geographyApi.categories(), []);
   const [loading, setLoading] = useState(false);
+  const [evidence, setEvidence] = useState<File[]>([]);
   const [form, setForm] = useState({
     title: "",
     description: "",
@@ -189,7 +236,15 @@ function CreateReport({ onCreated }: { onCreated: () => void }) {
     event.preventDefault();
     setLoading(true);
     try {
-      await reportsApi.create(form);
+      const report = await reportsApi.create(form);
+      for (const file of evidence) {
+        await reportsApi.addAttachment(report.id, {
+          fileName: file.name,
+          mimeType: file.type || "application/octet-stream",
+          mediaType: mediaTypeFor(file),
+          contentBase64: await fileToBase64(file),
+        });
+      }
       onCreated();
     } finally {
       setLoading(false);
@@ -213,6 +268,13 @@ function CreateReport({ onCreated }: { onCreated: () => void }) {
         </Field>
         <Field label="Local government"><input className={inputClass} value={form.localGovernment} onChange={(event) => setForm({ ...form, localGovernment: event.target.value })} /></Field>
         <Field label="Description"><textarea className={`${inputClass} h-28 py-3`} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} required minLength={10} /></Field>
+        <Field label="Evidence photos / files">
+          <label className={`${inputClass} flex h-auto min-h-11 cursor-pointer items-center gap-2 py-2`}>
+            <Camera className="h-4 w-4 text-civic-700" />
+            {evidence.length ? `${evidence.length} evidence file${evidence.length === 1 ? "" : "s"} selected` : "Choose pictures or files"}
+            <input className="hidden" type="file" multiple accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" onChange={(event) => setEvidence(Array.from(event.target.files ?? []))} />
+          </label>
+        </Field>
         <div className="grid gap-4 sm:grid-cols-3">
           <Field label="Province"><input className={inputClass} value={form.province} onChange={(event) => setForm({ ...form, province: event.target.value })} /></Field>
           <Field label="District"><input className={inputClass} value={form.district} onChange={(event) => setForm({ ...form, district: event.target.value })} /></Field>
@@ -224,4 +286,20 @@ function CreateReport({ onCreated }: { onCreated: () => void }) {
       </form>
     </Panel>
   );
+}
+
+function mediaTypeFor(file: File) {
+  if (file.type.startsWith("image/")) return "IMAGE";
+  if (file.type.startsWith("video/")) return "VIDEO";
+  if (file.type.startsWith("audio/")) return "AUDIO";
+  return "DOCUMENT";
+}
+
+function fileToBase64(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(",")[1] ?? "");
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
 }
