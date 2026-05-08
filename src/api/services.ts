@@ -99,6 +99,20 @@ export const settingsApi = {
   featureFlags: () => api<Record<string, unknown>>("/feature-flags"),
 };
 
+export const notificationsApi = {
+  pushPublicKey: () => api<{ enabled?: boolean; publicKey?: string }>("/notifications/push/public-key"),
+  savePushSubscription: (subscription: PushSubscriptionJSON) =>
+    api<Record<string, unknown>>("/notifications/push/subscriptions", {
+      method: "POST",
+      body: JSON.stringify(subscription),
+    }),
+  removePushSubscription: (endpoint: string) =>
+    api<Record<string, unknown>>("/notifications/push/subscriptions", {
+      method: "DELETE",
+      body: JSON.stringify({ endpoint }),
+    }),
+};
+
 function getDeviceFingerprint() {
   const key = "rrims.deviceFingerprint";
   const existing = localStorage.getItem(key);
