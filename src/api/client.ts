@@ -2,6 +2,7 @@ const API_BASE_URL = (
   import.meta.env.VITE_API_BASE_URL ?? "https://pantasaugat.com.np/api/v1"
 ).replace(/\/$/, "");
 const CSRF_COOKIE_NAME = import.meta.env.VITE_CSRF_COOKIE_NAME ?? "rrims_csrf";
+let csrfHeaderToken = "";
 
 export type ApiEnvelope<T> = {
   success: boolean;
@@ -48,14 +49,17 @@ const authFailureCodes = new Set([
 export const authExpiredEvent = "rrims:auth-expired";
 
 export function getApiTokens() {
-  return { accessToken: "", csrfToken: getCookie(CSRF_COOKIE_NAME) };
+  return { accessToken: "", csrfToken: csrfHeaderToken || getCookie(CSRF_COOKIE_NAME) };
 }
 
 export function setApiTokens(tokens: { accessToken?: string; csrfToken?: string }) {
-  void tokens;
+  if (tokens.csrfToken) {
+    csrfHeaderToken = tokens.csrfToken;
+  }
 }
 
 export function clearApiAuth() {
+  csrfHeaderToken = "";
   localStorage.removeItem("rrims.accessToken");
   localStorage.removeItem("rrims.csrfToken");
   localStorage.removeItem("rrims.user");
