@@ -1,5 +1,5 @@
 import { FormEvent, useState } from "react";
-import { KeyRound, LifeBuoy, MailCheck, Plus, ShieldAlert } from "lucide-react";
+import { CheckCircle2, KeyRound, LifeBuoy, MailCheck, Phone, Plus, Send, ShieldAlert } from "lucide-react";
 
 import { moduleApi } from "../api/services";
 import { Badge, Button, Field, inputClass, Panel } from "../components/ui";
@@ -77,6 +77,7 @@ export function SupportPage() {
   const [state, setState] = useState({ subject: "", message: "", contactEmail: "", contactPhone: "" });
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState("");
+  const [open, setOpen] = useState(false);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -94,26 +95,61 @@ export function SupportPage() {
   }
 
   return (
-    <Panel>
-      <div className="mb-6 flex items-center gap-3">
-        <LifeBuoy className="h-5 w-5 text-civic-700" />
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-wide text-civic-700">Help desk</p>
-          <h1 className="text-2xl font-bold text-ink-900">Support ticket</h1>
+    <>
+      <section className="mb-6 overflow-hidden rounded-lg border border-white/70 bg-slate-950 text-white shadow-2xl">
+        <div className="surface-grid bg-[linear-gradient(135deg,#08111f,#123a6f_58%,#0f766e)] p-6">
+          <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-end">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-civic-100">Help desk</p>
+              <h1 className="mt-2 text-3xl font-black leading-tight">Support center</h1>
+              <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-slate-100">
+                Open a ticket in a focused popup. Contact routes and ticket APIs are connected to the backend support module.
+              </p>
+            </div>
+            <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4" />New ticket</Button>
+          </div>
         </div>
+      </section>
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Panel className="p-5">
+          <LifeBuoy className="mb-4 h-8 w-8 text-civic-700" />
+          <h2 className="text-xl font-black text-ink-900">Ticket intake</h2>
+          <p className="mt-2 text-sm font-semibold leading-6 text-ink-500">Submit issues, account help, and operational support requests.</p>
+          <Button className="mt-5" onClick={() => setOpen(true)}><Send className="h-4 w-4" />Open form</Button>
+        </Panel>
+        <Panel className="p-5">
+          <MailCheck className="mb-4 h-8 w-8 text-blue-700" />
+          <h2 className="text-xl font-black text-ink-900">Contact details</h2>
+          <p className="mt-2 text-sm font-semibold leading-6 text-ink-500">Use email and phone fields so support can follow up quickly.</p>
+        </Panel>
+        <Panel className="p-5">
+          <CheckCircle2 className="mb-4 h-8 w-8 text-green-700" />
+          <h2 className="text-xl font-black text-ink-900">Status</h2>
+          <p className="mt-2 text-sm font-semibold leading-6 text-ink-500">{result || "No ticket submitted in this session yet."}</p>
+        </Panel>
       </div>
-      <form onSubmit={submit} className="grid gap-4 lg:grid-cols-2">
-        <Field label="Subject"><input className={inputClass} value={state.subject} onChange={(event) => setState({ ...state, subject: event.target.value })} /></Field>
-        <Field label="Contact email"><input className={inputClass} type="email" value={state.contactEmail} onChange={(event) => setState({ ...state, contactEmail: event.target.value })} /></Field>
-        <Field label="Contact phone"><input className={inputClass} value={state.contactPhone} onChange={(event) => setState({ ...state, contactPhone: event.target.value })} /></Field>
-        <div />
-        <Field label="Message"><textarea className={`${inputClass} h-36 py-3`} required minLength={10} value={state.message} onChange={(event) => setState({ ...state, message: event.target.value })} /></Field>
-        <div className="lg:col-span-2 flex items-center gap-3">
-          <Button loading={loading}>Submit ticket</Button>
-          {result ? <p className="text-sm font-medium text-ink-700">{result}</p> : null}
+      {open ? (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/60 p-4 backdrop-blur-sm" onMouseDown={() => setOpen(false)}>
+          <div className="mx-auto my-8 max-w-3xl overflow-hidden rounded-lg border border-white/70 bg-white shadow-2xl" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="border-b border-slate-200 bg-[linear-gradient(135deg,#ffffff,#eef7f6)] p-5">
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-civic-700">Support popup</p>
+              <h2 className="text-xl font-black text-ink-900">Create support ticket</h2>
+            </div>
+            <form onSubmit={submit} className="grid gap-4 bg-slate-50 p-5 lg:grid-cols-2">
+              <Field label="Subject"><input className={inputClass} required value={state.subject} onChange={(event) => setState({ ...state, subject: event.target.value })} /></Field>
+              <Field label="Contact email"><input className={inputClass} type="email" value={state.contactEmail} onChange={(event) => setState({ ...state, contactEmail: event.target.value })} /></Field>
+              <Field label="Contact phone"><input className={inputClass} value={state.contactPhone} onChange={(event) => setState({ ...state, contactPhone: event.target.value })} /></Field>
+              <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm font-semibold text-ink-600"><Phone className="mr-2 inline h-4 w-4 text-civic-700" />Support uses your current RRIMS session context.</div>
+              <Field label="Message"><textarea className={`${inputClass} h-40 py-3`} required minLength={10} value={state.message} onChange={(event) => setState({ ...state, message: event.target.value })} /></Field>
+              <div className="flex items-end gap-3 lg:col-span-2">
+                <Button loading={loading}>Submit ticket</Button>
+                <Button type="button" variant="secondary" onClick={() => setOpen(false)}>Close</Button>
+              </div>
+            </form>
+          </div>
         </div>
-      </form>
-    </Panel>
+      ) : null}
+    </>
   );
 }
 

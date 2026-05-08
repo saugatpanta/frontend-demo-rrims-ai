@@ -312,6 +312,7 @@ function MfaPanel({
   const [disableCode, setDisableCode] = useState("");
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [qrError, setQrError] = useState("");
+  const [step, setStep] = useState<"password" | "scan" | "protected" | "manage">("password");
 
   const status = (data?.status ?? {}) as Record<string, unknown>;
   const enabled = Boolean(status.enabled ?? status.enabledAt);
@@ -355,6 +356,7 @@ function MfaPanel({
     try {
       const result = await authApi.enableMfa(password);
       setEnrollment(result);
+      setStep("scan");
       playTone("success");
       setMessage("MFA enrollment initialized. Add the secret to your authenticator and verify the 6-digit code.");
     } catch (error) {
@@ -367,6 +369,7 @@ function MfaPanel({
     try {
       const result = await authApi.verifyMfa(enrollmentId, code);
       setEnrollment(result);
+      setStep("protected");
       playTone("success");
       setMessage("MFA enabled successfully. Save your recovery codes if returned.");
       onChanged();
@@ -379,6 +382,7 @@ function MfaPanel({
   async function disable() {
     try {
       await authApi.disableMfa({ password, mfaCode: disableCode });
+      setStep("password");
       playTone("success");
       setMessage("MFA disabled. Sign in again if the backend invalidated sessions.");
       onChanged();
@@ -416,17 +420,23 @@ function MfaPanel({
           <Badge value={enabled ? "ENABLED" : enrollmentId ? "PENDING" : "DISABLED"} />
         </div>
         <div className="mt-5 grid gap-3 sm:grid-cols-3">
-          <MfaStep active={!enabled && !enrollmentId} done={Boolean(enrollmentId || enabled)} label="1. Verify password" />
-          <MfaStep active={Boolean(enrollmentId && !enabled)} done={enabled} label="2. Scan QR code" />
-          <MfaStep active={enabled} done={enabled} label="3. Protected login" />
+          <MfaStep active={step === "password"} done={Boolean(enrollmentId || enabled)} label="1. Verify password" />
+          <MfaStep active={step === "scan"} done={enabled} label="2. Scan QR code" />
+          <MfaStep active={step === "protected" || step === "manage"} done={enabled} label="3. Protected login" />
         </div>
       </div>
       <div className="p-5">
-        <div className="grid gap-4 md:grid-cols-2">
-          <Field label="Current password"><input className={inputClass} type="password" value={password} onChange={(event) => setPassword(event.target.value)} /></Field>
-          <Field label="Authenticator code"><input className={inputClass} placeholder="6-digit code" value={code} onChange={(event) => setCode(event.target.value)} maxLength={6} /></Field>
-        </div>
-      {enrollment ? (
+        {step === "password" ? (
+          <div className="space-y-4">
+            <p className="text-sm font-semibold leading-6 text-ink-500">Start with your current password. The QR setup appears only after the backend creates the MFA enrollment.</p>
+            <Field label="Current password"><input className={inputClass} type="password" value={password} onChange={(event) => setPassword(event.target.value)} /></Field>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" onClick={enable}>Start MFA</Button>
+              {enabled ? <Button type="button" variant="secondary" onClick={() => setStep("manage")}>Manage existing MFA</Button> : null}
+            </div>
+          </div>
+        ) : null}
+      {step === "scan" && enrollment ? (
         <div className="mt-4 rounded-lg border border-civic-100 bg-civic-50/70 p-4">
           <div className="grid gap-4 md:grid-cols-[180px_1fr]">
             <div className="rounded-md border border-slate-200 bg-white p-3">
@@ -447,15 +457,31 @@ function MfaPanel({
             </div>
           </div>
           {Array.isArray(enrollment.recoveryCodes) ? <pre className="mt-3 rounded-md bg-slate-950 p-3 text-xs text-white">{enrollment.recoveryCodes.join("\n")}</pre> : null}
+          <div className="mt-4 grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
+            <Field label="Authenticator code"><input className={inputClass} placeholder="6-digit code" value={code} onChange={(event) => setCode(event.target.value)} maxLength={6} /></Field>
+            <Button type="button" variant="secondary" onClick={verify}>Verify MFA</Button>
+          </div>
         </div>
       ) : null}
-      <div className="mt-4 flex flex-wrap gap-2">
-        <Button type="button" onClick={enable}>Start MFA</Button>
-        <Button type="button" variant="secondary" onClick={verify}>Verify MFA</Button>
-        <Field label="Disable/regenerate code"><input className={inputClass} value={disableCode} onChange={(event) => setDisableCode(event.target.value)} /></Field>
-        <Button type="button" variant="secondary" onClick={regenerate}><RefreshCw className="h-4 w-4" />Recovery codes</Button>
-        <Button type="button" variant="danger" onClick={disable}>Disable MFA</Button>
-      </div>
+      {step === "protected" ? (
+        <div className="rounded-lg border border-green-200 bg-green-50 p-4">
+          <p className="font-black text-green-900">MFA is protecting this account.</p>
+          <p className="mt-1 text-sm font-semibold text-green-800">Use the manage step only when you need recovery codes or disable access.</p>
+          <Button className="mt-4" type="button" variant="secondary" onClick={() => setStep("manage")}>Manage MFA</Button>
+        </div>
+      ) : null}
+      {step === "manage" ? (
+        <div className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field label="Current password"><input className={inputClass} type="password" value={password} onChange={(event) => setPassword(event.target.value)} /></Field>
+            <Field label="Authenticator / recovery code"><input className={inputClass} value={disableCode} onChange={(event) => setDisableCode(event.target.value)} /></Field>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="secondary" onClick={regenerate}><RefreshCw className="h-4 w-4" />Recovery codes</Button>
+            <Button type="button" variant="danger" onClick={disable}>Disable MFA</Button>
+          </div>
+        </div>
+      ) : null}
       </div>
     </Panel>
   );
