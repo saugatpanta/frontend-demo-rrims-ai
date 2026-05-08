@@ -1,9 +1,9 @@
 import clsx from "clsx";
 import type { ButtonHTMLAttributes, PropsWithChildren, ReactNode } from "react";
-import { useState } from "react";
-import { FileSearch, Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { CheckCircle2, FileSearch, Loader2, XCircle } from "lucide-react";
 
-import { apiConfig } from "../api/client";
+import { apiConfig, getApiTokens } from "../api/client";
 import { statusTone, titleCase } from "../utils/format";
 
 export function Button({
@@ -137,6 +137,57 @@ export function SkeletonRows({ count = 4 }: { count?: number }) {
   );
 }
 
+export function JsonViewer({ title = "Structured data", data }: { title?: string; data: unknown }) {
+  const entries = data && typeof data === "object" && !Array.isArray(data)
+    ? Object.entries(data as Record<string, unknown>)
+    : [];
+  return (
+    <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+      <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-3">
+        <p className="text-sm font-black text-ink-900">{title}</p>
+        <span className="rounded-full bg-civic-50 px-2.5 py-1 text-xs font-black text-civic-700">
+          {Array.isArray(data) ? `${data.length} items` : `${entries.length} fields`}
+        </span>
+      </div>
+      <div className="max-h-80 overflow-auto p-3">
+        {entries.length ? (
+          <div className="grid gap-2">
+            {entries.map(([key, value]) => (
+              <div key={key} className="rounded-md border border-slate-100 bg-slate-50 p-3">
+                <p className="text-xs font-black uppercase tracking-[0.12em] text-civic-700">{key}</p>
+                <p className="mt-1 break-words text-sm font-semibold leading-6 text-ink-700">
+                  {formatJsonValue(value)}
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="rounded-md bg-slate-50 p-3 text-sm font-semibold text-ink-500">{formatJsonValue(data)}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function formatJsonValue(value: unknown): string {
+  if (value === null || value === undefined || value === "") return "Not set";
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return String(value);
+  return JSON.stringify(value, null, 2);
+}
+
+export function FloatingToast({ message, tone = "success" }: { message?: string; tone?: "success" | "error" | "info" }) {
+  if (!message) return null;
+  const isError = tone === "error";
+  return (
+    <div className="fixed right-4 top-4 z-[80] max-w-sm rounded-lg border border-white/70 bg-white p-4 shadow-2xl ring-1 ring-slate-900/[0.04]">
+      <div className="flex gap-3">
+        {isError ? <XCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-700" /> : <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-civic-700" />}
+        <p className="text-sm font-bold leading-6 text-ink-800">{message}</p>
+      </div>
+    </div>
+  );
+}
+
 export function Avatar({
   userId,
   name,
@@ -149,6 +200,7 @@ export function Avatar({
   className?: string;
 }) {
   const [failed, setFailed] = useState(false);
+  const [objectUrl, setObjectUrl] = useState("");
   const sizes = {
     sm: "h-8 w-8 text-xs",
     md: "h-10 w-10 text-sm",
@@ -158,6 +210,35 @@ export function Avatar({
   const initial = (name ?? "R").trim().slice(0, 1).toUpperCase() || "R";
   const src = userId ? `${apiConfig.baseUrl}/profile/avatar/${userId}` : "";
 
+  useEffect(() => {
+    let cancelled = false;
+    let url = "";
+    setObjectUrl("");
+    setFailed(false);
+    if (!src) return;
+    const { accessToken } = getApiTokens();
+    fetch(src, {
+      credentials: "include",
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+    })
+      .then((response) => {
+        if (!response.ok) throw new Error("Avatar unavailable");
+        return response.blob();
+      })
+      .then((blob) => {
+        if (cancelled) return;
+        url = URL.createObjectURL(blob);
+        setObjectUrl(url);
+      })
+      .catch(() => {
+        if (!cancelled) setFailed(true);
+      });
+    return () => {
+      cancelled = true;
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [src]);
+
   return (
     <span
       className={clsx(
@@ -166,9 +247,9 @@ export function Avatar({
         className,
       )}
     >
-      {src && !failed ? (
+      {objectUrl && !failed ? (
         <img
-          src={src}
+          src={objectUrl}
           alt={name ? `${name} profile picture` : "Profile picture"}
           className="absolute inset-0 h-full w-full object-cover"
           onError={() => setFailed(true)}

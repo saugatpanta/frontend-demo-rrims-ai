@@ -37,7 +37,14 @@ export function LoginPage() {
       await login(identifier, password);
       navigate("/app");
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Could not sign in.");
+      const code = caught && typeof caught === "object" && "code" in caught ? String((caught as { code?: unknown }).code) : "";
+      setError(
+        code === "MFA_CHALLENGE_REQUIRED"
+          ? "Additional verification is required. Complete MFA to continue."
+          : caught instanceof Error
+            ? caught.message
+            : "Could not sign in.",
+      );
     } finally {
       setLoading(false);
     }

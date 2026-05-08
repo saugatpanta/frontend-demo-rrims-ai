@@ -5,7 +5,7 @@ import { geographyApi, moduleApi, reportsApi, unwrapList } from "../api/services
 import type { Report, SelectOption } from "../api/types";
 import { DataTable } from "../components/DataTable";
 import { PageHeader } from "../components/PageHeader";
-import { Badge, Button, Field, inputClass, Panel } from "../components/ui";
+import { Badge, Button, Field, FloatingToast, inputClass, JsonViewer, Panel } from "../components/ui";
 import { useAsync } from "../hooks/useAsync";
 import { dateLabel } from "../utils/format";
 import { playTone } from "../utils/sound";
@@ -31,7 +31,6 @@ export function ReportsPage() {
         eyebrow="Incident lifecycle"
         action={<Button onClick={() => setShowCreate((value) => !value)}><Plus className="h-4 w-4" />New report</Button>}
       />
-
       {showCreate ? <CreateReport onCreated={() => { setShowCreate(false); setRefresh((value) => value + 1); }} /> : null}
 
       <Panel className="mb-5">
@@ -131,6 +130,7 @@ function ReportDetail({ report, onClose, onChanged }: { report: Report; onClose:
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/40 p-4 backdrop-blur-sm">
+      <FloatingToast message={actionMessage} tone={actionMessage.toLowerCase().includes("failed") ? "error" : "success"} />
       <div className="ml-auto h-full max-w-2xl overflow-y-auto rounded-lg bg-white p-5 shadow-soft">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -187,7 +187,7 @@ function ReportDetail({ report, onClose, onChanged }: { report: Report; onClose:
           <h3 className="font-bold text-ink-900">Timeline</h3>
           <div className="mt-3 space-y-2">
             {(Array.isArray(timeline.data) ? timeline.data : []).slice(0, 8).map((item, index) => (
-              <div key={index} className="rounded-md border border-slate-200 p-3 text-sm text-ink-700">{JSON.stringify(item)}</div>
+              <JsonViewer key={index} title={`Timeline event ${index + 1}`} data={item} />
             ))}
             {!timeline.loading && (!Array.isArray(timeline.data) || timeline.data.length === 0) ? <p className="text-sm text-ink-500">No timeline returned.</p> : null}
           </div>

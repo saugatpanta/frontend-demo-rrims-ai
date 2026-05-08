@@ -5,7 +5,7 @@ import { moduleApi } from "../api/services";
 import { apiCatalog, type ApiEndpoint } from "../data/apiCatalog";
 import { DataTable } from "../components/DataTable";
 import { PageHeader } from "../components/PageHeader";
-import { Badge, Button, Field, inputClass, Panel } from "../components/ui";
+import { Badge, Button, Field, inputClass, JsonViewer, Panel } from "../components/ui";
 
 export function ApiHubPage() {
   const [query, setQuery] = useState("");
@@ -80,7 +80,9 @@ export function ApiHubPage() {
               Execute
             </Button>
           </form>
-          <pre className="mt-4 max-h-96 overflow-auto rounded-lg bg-slate-950 p-4 text-xs text-slate-100">{result || "Select an endpoint to execute."}</pre>
+          <div className="mt-4">
+            <JsonViewer title="API response" data={result ? safeJson(result) : { status: "Select an endpoint to execute." }} />
+          </div>
         </Panel>
       </div>
       {confirmDelete ? (
@@ -115,4 +117,12 @@ export function ApiHubPage() {
       ) : null}
     </>
   );
+}
+
+function safeJson(value: string) {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return { response: value };
+  }
 }

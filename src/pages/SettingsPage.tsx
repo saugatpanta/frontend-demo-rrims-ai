@@ -5,7 +5,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import { authApi, settingsApi } from "../api/services";
 import { PageHeader } from "../components/PageHeader";
-import { Badge, Button, Field, inputClass, Panel } from "../components/ui";
+import { Badge, Button, Field, FloatingToast, inputClass, JsonViewer, Panel } from "../components/ui";
 import { useAsync } from "../hooks/useAsync";
 import { isSoundEnabled, playTone, setSoundEnabled } from "../utils/sound";
 
@@ -44,7 +44,7 @@ export function SettingsPage() {
   return (
     <>
       <PageHeader title="Settings & Security" eyebrow="Premium control center for identity, permissions, sound, and platform policies" />
-      {message ? <Panel className="mb-5 bg-civic-50 text-sm font-semibold text-civic-800">{message}</Panel> : null}
+      <FloatingToast message={message} tone={message.toLowerCase().includes("could not") ? "error" : "success"} />
       <section className="mb-6 overflow-hidden rounded-lg border border-white/70 bg-slate-950 text-white shadow-2xl">
         <div className="surface-grid bg-[linear-gradient(135deg,#08111f,#0f766e_55%,#123a6f)] p-6">
           <div className="grid gap-6 lg:grid-cols-[1fr_22rem] lg:items-end">
@@ -456,7 +456,18 @@ function MfaPanel({
               <p className="mt-3 break-all text-xs text-ink-500">otpauth: {otpAuthUrl || "Not returned"}</p>
             </div>
           </div>
-          {Array.isArray(enrollment.recoveryCodes) ? <pre className="mt-3 rounded-md bg-slate-950 p-3 text-xs text-white">{enrollment.recoveryCodes.join("\n")}</pre> : null}
+          {Array.isArray(enrollment.recoveryCodes) ? (
+            <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
+              <p className="mb-2 text-xs font-black uppercase tracking-[0.14em] text-civic-700">Recovery codes</p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {enrollment.recoveryCodes.map((code) => (
+                  <code key={String(code)} className="rounded-md bg-slate-50 px-3 py-2 text-xs font-black text-ink-700">
+                    {String(code)}
+                  </code>
+                ))}
+              </div>
+            </div>
+          ) : null}
           <div className="mt-4 grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
             <Field label="Authenticator code"><input className={inputClass} placeholder="6-digit code" value={code} onChange={(event) => setCode(event.target.value)} maxLength={6} /></Field>
             <Button type="button" variant="secondary" onClick={verify}>Verify MFA</Button>
@@ -606,7 +617,7 @@ function NotificationPanel({
       <div className="space-y-2">
         {topics.map((topic) => <Badge key={topic} value={topic} />)}
       </div>
-      <pre className="mt-4 max-h-48 overflow-auto rounded-md bg-slate-950 p-3 text-xs text-white">{JSON.stringify(data ?? {}, null, 2)}</pre>
+      <div className="mt-4"><JsonViewer title="Current notification preferences" data={data ?? {}} /></div>
       <Button className="mt-4" onClick={save}>Apply standard government policy</Button>
     </Panel>
   );
@@ -777,7 +788,7 @@ function SystemPanel({ title, icon, data }: { title: string; icon: ReactNode; da
         {icon}
         <h2 className="text-xl font-black text-ink-900">{title}</h2>
       </div>
-      <pre className="max-h-72 overflow-auto rounded-md bg-slate-950 p-3 text-xs text-white">{JSON.stringify(data ?? {}, null, 2)}</pre>
+      <JsonViewer title={title} data={data ?? {}} />
     </Panel>
   );
 }
