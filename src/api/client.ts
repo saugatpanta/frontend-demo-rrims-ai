@@ -2,7 +2,10 @@ const API_BASE_URL = (
   import.meta.env.VITE_API_BASE_URL ?? "https://pantasaugat.com.np/api/v1"
 ).replace(/\/$/, "");
 const CSRF_COOKIE_NAME = import.meta.env.VITE_CSRF_COOKIE_NAME ?? "rrims_csrf";
+const ACCESS_TOKEN_STORAGE_KEY = "rrims.accessToken";
+const CSRF_TOKEN_STORAGE_KEY = "rrims.csrfToken";
 let csrfHeaderToken = "";
+let csrfTokenRequest: Promise<string> | null = null;
 
 export type ApiEnvelope<T> = {
   success: boolean;
@@ -49,19 +52,26 @@ const authFailureCodes = new Set([
 export const authExpiredEvent = "rrims:auth-expired";
 
 export function getApiTokens() {
-  return { accessToken: "", csrfToken: csrfHeaderToken || getCookie(CSRF_COOKIE_NAME) };
+  const accessToken = localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY) ?? "";
+  const csrfToken =
+    csrfHeaderToken || localStorage.getItem(CSRF_TOKEN_STORAGE_KEY) || getCookie(CSRF_COOKIE_NAME);
+  return { accessToken, csrfToken };
 }
 
 export function setApiTokens(tokens: { accessToken?: string; csrfToken?: string }) {
+  if (tokens.accessToken) {
+    localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, tokens.accessToken);
+  }
   if (tokens.csrfToken) {
     csrfHeaderToken = tokens.csrfToken;
+    localStorage.setItem(CSRF_TOKEN_STORAGE_KEY, tokens.csrfToken);
   }
 }
 
 export function clearApiAuth() {
   csrfHeaderToken = "";
-  localStorage.removeItem("rrims.accessToken");
-  localStorage.removeItem("rrims.csrfToken");
+  localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+  localStorage.removeItem(CSRF_TOKEN_STORAGE_KEY);
   localStorage.removeItem("rrims.user");
 }
 
@@ -106,6 +116,74 @@ export function buildApiUrl(path: string, query?: Record<string, string | number
   return buildUrl(path, query);
 }
 
+function isUnsafeMethod(method = "GET") {
+  return ["POST", "PATCH", "PUT", "DELETE"].includes(method.toUpperCase());
+}
+
+function extractCsrfToken(payload: unknown): string {
+  const data =
+    payload && typeof payload === "object" && "data" in payload
+      ? (payload as { data?: unknown }).data
+      : payload;
+  if (!data || typeof data !== "object") return "";
+
+  const value = data as {
+    csrfToken?: unknown;
+    token?: unknown;
+    tokenValue?: unknown;
+    auth?: { csrf?: { token?: unknown } };
+    security?: { csrf?: { token?: unknown } };
+    session?: { csrf?: { token?: unknown } };
+  };
+
+  const token =
+    value.security?.csrf?.token ??
+    value.session?.csrf?.token ??
+    value.auth?.csrf?.token ??
+    value.csrfToken ??
+    value.tokenValue ??
+    (typeof value.token === "string" ? value.token : "");
+
+  return typeof token === "string" ? token : "";
+}
+
+async function ensureCsrfToken() {
+  const existingToken = getApiTokens().csrfToken;
+  if (existingToken) return existingToken;
+  if (csrfTokenRequest) return csrfTokenRequest;
+
+  csrfTokenRequest = fetch(buildUrl("/auth/csrf-token"), {
+    credentials: "include",
+  })
+    .then(async (response) => {
+      const contentType = response.headers.get("content-type") ?? "";
+      const payload = contentType.includes("application/json") ? await response.json() : await response.text();
+
+      if (!response.ok) {
+        const envelope = payload as Partial<ApiEnvelope<unknown>>;
+        throw new ApiError(
+          envelope.message ?? response.statusText,
+          response.status,
+          envelope.code,
+          envelope.details,
+        );
+      }
+
+      const csrfToken = extractCsrfToken(payload);
+      if (!csrfToken) {
+        throw new ApiError("CSRF token response did not include a token.", response.status, "CSRF_TOKEN_MISSING");
+      }
+
+      setApiTokens({ csrfToken });
+      return csrfToken;
+    })
+    .finally(() => {
+      csrfTokenRequest = null;
+    });
+
+  return csrfTokenRequest;
+}
+
 export async function api<T>(
   path: string,
   options: RequestInit & {
@@ -115,13 +193,25 @@ export async function api<T>(
 ): Promise<T> {
   const headers = new Headers(options.headers);
   const hasBody = options.body !== undefined && !(options.body instanceof FormData);
+  const method = (options.method ?? "GET").toUpperCase();
 
   if (hasBody && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
 
-  const { csrfToken } = getApiTokens();
-  if (csrfToken && ["POST", "PATCH", "PUT", "DELETE"].includes((options.method ?? "GET").toUpperCase())) {
+  if (isUnsafeMethod(method) && path !== "/auth/csrf-token" && path !== "/auth/csrf") {
+    const csrfToken = await ensureCsrfToken();
+    if (!headers.has("x-csrf-token")) {
+      headers.set("x-csrf-token", csrfToken);
+    }
+  }
+
+  const { accessToken, csrfToken } = getApiTokens();
+  if (accessToken && !options.skipAuth && !headers.has("Authorization")) {
+    headers.set("Authorization", `Bearer ${accessToken}`);
+  }
+
+  if (csrfToken && isUnsafeMethod(method) && !headers.has("x-csrf-token")) {
     headers.set("x-csrf-token", csrfToken);
   }
 

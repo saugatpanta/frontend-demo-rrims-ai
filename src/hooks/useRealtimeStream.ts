@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-import { buildApiUrl } from "../api/client";
+import { buildApiUrl, getApiTokens } from "../api/client";
 
 type StreamEvent = {
   event: string;
@@ -27,8 +27,14 @@ export function useRealtimeStream(
 
     async function connect() {
       try {
+        const { accessToken } = getApiTokens();
+        const headers = new Headers();
+        if (accessToken) {
+          headers.set("Authorization", `Bearer ${accessToken}`);
+        }
         const response = await fetch(buildApiUrl(streamPath, query), {
           credentials: "include",
+          headers,
           signal: controller.signal,
         });
 
