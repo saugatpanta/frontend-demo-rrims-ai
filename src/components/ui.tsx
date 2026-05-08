@@ -3,7 +3,7 @@ import type { ButtonHTMLAttributes, PropsWithChildren, ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { CheckCircle2, FileSearch, Loader2, XCircle } from "lucide-react";
 
-import { apiConfig, getApiTokens } from "../api/client";
+import { apiConfig } from "../api/client";
 import { statusTone, titleCase } from "../utils/format";
 
 export function Button({
@@ -216,10 +216,8 @@ export function Avatar({
     setObjectUrl("");
     setFailed(false);
     if (!src) return;
-    const { accessToken } = getApiTokens();
     fetch(src, {
       credentials: "include",
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
     })
       .then((response) => {
         if (!response.ok) throw new Error("Avatar unavailable");

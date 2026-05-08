@@ -47,32 +47,17 @@ const authFailureCodes = new Set([
 
 export const authExpiredEvent = "rrims:auth-expired";
 
-const ACCESS_TOKEN_STORAGE_KEY = "rrims.accessToken";
-const CSRF_TOKEN_STORAGE_KEY = "rrims.csrfToken";
-
 export function getApiTokens() {
-  return {
-    accessToken: localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY) ?? "",
-    csrfToken:
-      getCookie(CSRF_COOKIE_NAME) ||
-      localStorage.getItem(CSRF_TOKEN_STORAGE_KEY) ||
-      "",
-  };
+  return { accessToken: "", csrfToken: getCookie(CSRF_COOKIE_NAME) };
 }
 
 export function setApiTokens(tokens: { accessToken?: string; csrfToken?: string }) {
-  if (tokens.accessToken) {
-    localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, tokens.accessToken);
-  }
-
-  if (tokens.csrfToken) {
-    localStorage.setItem(CSRF_TOKEN_STORAGE_KEY, tokens.csrfToken);
-  }
+  void tokens;
 }
 
 export function clearApiAuth() {
-  localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
-  localStorage.removeItem(CSRF_TOKEN_STORAGE_KEY);
+  localStorage.removeItem("rrims.accessToken");
+  localStorage.removeItem("rrims.csrfToken");
   localStorage.removeItem("rrims.user");
 }
 
@@ -131,11 +116,7 @@ export async function api<T>(
     headers.set("Content-Type", "application/json");
   }
 
-  const { accessToken, csrfToken } = getApiTokens();
-  if (accessToken && !options.skipAuth && !headers.has("Authorization")) {
-    headers.set("Authorization", `Bearer ${accessToken}`);
-  }
-
+  const { csrfToken } = getApiTokens();
   if (csrfToken && ["POST", "PATCH", "PUT", "DELETE"].includes((options.method ?? "GET").toUpperCase())) {
     headers.set("x-csrf-token", csrfToken);
   }
