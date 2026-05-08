@@ -28,6 +28,10 @@ export type MfaChallenge = {
   expiresAt?: string;
 };
 
+type AppliedAuthResponse = ReturnType<typeof applyAuthResponse>;
+
+let refreshRequest: Promise<AppliedAuthResponse> | null = null;
+
 function extractItems<T>(value: unknown): T[] {
   if (Array.isArray(value)) return value as T[];
   if (value && typeof value === "object" && "items" in value) {
@@ -72,12 +76,18 @@ export const authApi = {
     return data;
   },
   async refresh() {
-    const data = await api<LoginResponse>("/auth/refresh", {
-      method: "POST",
-      skipAuth: true,
-      body: JSON.stringify({}),
-    });
-    return applyAuthResponse(data);
+    if (!refreshRequest) {
+      refreshRequest = api<LoginResponse>("/auth/refresh", {
+        method: "POST",
+        skipAuth: true,
+        body: JSON.stringify({}),
+      })
+        .then((data) => applyAuthResponse(data))
+        .finally(() => {
+          refreshRequest = null;
+        });
+    }
+    return refreshRequest;
   },
   async logout() {
     try {
