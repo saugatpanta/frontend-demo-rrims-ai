@@ -7,7 +7,9 @@ import {
   MapPin,
   Phone,
   ShieldCheck,
+  SlidersHorizontal,
   UserRound,
+  X,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { FormEvent, useEffect, useState } from "react";
@@ -75,6 +77,7 @@ export function ProfilePage() {
   const [loading, setLoading] = useState(false);
   const [avatar, setAvatar] = useState<Record<string, string> | null>(null);
   const [removeAvatar, setRemoveAvatar] = useState(false);
+  const [editorOpen, setEditorOpen] = useState(false);
 
   const districtQuery = useAsync(
     () => (form.provinceId ? geographyApi.districts(form.provinceId) : Promise.resolve([])),
@@ -164,23 +167,36 @@ export function ProfilePage() {
       <PageHeader title="Profile Center" eyebrow="Identity, security, and account governance" />
       <div className="grid gap-6 xl:grid-cols-[0.82fr_1.18fr]">
         <div className="space-y-6">
-          <Panel>
-            <div className="flex items-start gap-4">
-              <Avatar userId={shown?.id} name={shown?.fullName ?? shown?.username} size="xl" />
+          <Panel className="overflow-hidden p-0">
+            <div className="bg-slate-950 p-5 text-white">
+              <div className="flex items-start gap-4">
+                <div className="relative">
+                  <Avatar userId={shown?.id} name={shown?.fullName ?? shown?.username} size="xl" className="ring-4 ring-white/20" />
+                  <button
+                    type="button"
+                    className="absolute -bottom-1 -right-1 grid h-9 w-9 place-items-center rounded-md bg-civic-500 text-white shadow-lg"
+                    onClick={() => setEditorOpen(true)}
+                    aria-label="Edit profile photo"
+                  >
+                    <Camera className="h-4 w-4" />
+                  </button>
+                </div>
               <div className="min-w-0">
-                <h2 className="text-2xl font-black text-ink-900">{shown?.fullName ?? "Operator"}</h2>
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-civic-100">Profile identity</p>
+                <h2 className="mt-1 text-2xl font-black text-white">{shown?.fullName ?? "Operator"}</h2>
                 <div className="mt-2 flex flex-wrap gap-2">
                   <Badge value={shown?.role} />
                   {shown?.isEmailVerified ? <Badge value="EMAIL_VERIFIED" /> : <Badge value="EMAIL_PENDING" />}
                   {shown?.isPhoneVerified ? <Badge value="PHONE_VERIFIED" /> : null}
                 </div>
-                <div className="mt-5 h-2 rounded-full bg-slate-100">
-                  <div className="h-2 rounded-full bg-civic-700" style={{ width: `${shown?.profileCompleteness?.percentage ?? 0}%` }} />
+                <div className="mt-5 h-2 rounded-full bg-white/15">
+                  <div className="h-2 rounded-full bg-civic-300" style={{ width: `${shown?.profileCompleteness?.percentage ?? 0}%` }} />
                 </div>
-                <p className="mt-2 text-sm text-ink-500">Profile completeness: {shown?.profileCompleteness?.percentage ?? 0}%</p>
+                <p className="mt-2 text-sm font-semibold text-slate-200">Profile completeness: {shown?.profileCompleteness?.percentage ?? 0}%</p>
+              </div>
               </div>
             </div>
-            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 p-5 sm:grid-cols-2">
               <Info icon={<Phone className="h-4 w-4" />} label="Phone" value={shown?.phone ?? "Not set"} />
               <Info icon={<Mail className="h-4 w-4" />} label="Email" value={shown?.email ?? "Not set"} />
               <Info icon={<ShieldCheck className="h-4 w-4" />} label="Permissions" value={`${shown?.permissions?.length ?? 0} granted`} />
@@ -206,6 +222,28 @@ export function ProfilePage() {
           </Panel>
         </div>
 
+        <div className="space-y-6">
+          <section className="overflow-hidden rounded-lg border border-white/70 bg-slate-950 text-white shadow-2xl">
+            <div className="surface-grid bg-[linear-gradient(135deg,#08111f,#123a6f_58%,#0f766e)] p-6">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-civic-100">Premium profile controls</p>
+              <h2 className="mt-2 text-3xl font-black leading-tight">Open profile sections in a popup</h2>
+              <p className="mt-3 text-sm font-semibold leading-6 text-slate-100">
+                Profile photo, identity, citizen details, geography, and password controls stay clean on the page and open in the editor popup.
+              </p>
+            </div>
+          </section>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <ProfileActionCard title="Identity" body="Name, username, email, and language." icon={<UserRound className="h-5 w-5" />} onOpen={() => setEditorOpen(true)} />
+            <ProfileActionCard title="Citizen profile" body="Gender, DOB, citizenship, occupation, emergency contact." icon={<ShieldCheck className="h-5 w-5" />} onOpen={() => setEditorOpen(true)} />
+            <ProfileActionCard title="Geography" body="Province, district, local government, and ward." icon={<MapPin className="h-5 w-5" />} onOpen={() => setEditorOpen(true)} />
+            <ProfileActionCard title="Profile photo" body="Upload or remove your backend avatar image." icon={<Camera className="h-5 w-5" />} onOpen={() => setEditorOpen(true)} />
+            <ProfileActionCard title="Password security" body="Change password using current-password verification." icon={<KeyRound className="h-5 w-5" />} onOpen={() => setEditorOpen(true)} />
+            <ProfileActionCard title="Activity" body="Review backend account activity and audit signals." icon={<Activity className="h-5 w-5" />} onOpen={() => setEditorOpen(true)} />
+          </div>
+        </div>
+      </div>
+
+      <ProfileModal open={editorOpen} onClose={() => setEditorOpen(false)}>
         <Panel>
           <form onSubmit={submit} className="space-y-7">
             <Section title="Identity" icon={<UserRound className="h-5 w-5" />}>
@@ -262,8 +300,47 @@ export function ProfilePage() {
             </div>
           </form>
         </Panel>
-      </div>
+      </ProfileModal>
     </>
+  );
+}
+
+function ProfileActionCard({ title, body, icon, onOpen }: { title: string; body: string; icon: ReactNode; onOpen: () => void }) {
+  return (
+    <Panel className="overflow-hidden p-0">
+      <button type="button" className="block w-full whitespace-normal p-5 text-left" onClick={onOpen}>
+        <div className="flex items-start justify-between gap-4">
+          <span className="grid h-12 w-12 place-items-center rounded-md bg-civic-50 text-civic-700 ring-1 ring-civic-100">{icon}</span>
+          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-ink-600">Configure</span>
+        </div>
+        <h2 className="mt-5 text-xl font-black leading-tight text-ink-900">{title}</h2>
+        <p className="mt-3 min-h-12 text-sm font-semibold leading-6 text-ink-500">{body}</p>
+      </button>
+      <button type="button" className="flex w-full items-center justify-between border-t border-slate-200/80 bg-slate-50/80 px-5 py-3 text-sm font-black text-civic-700" onClick={onOpen}>
+        Open popup
+        <SlidersHorizontal className="h-4 w-4" />
+      </button>
+    </Panel>
+  );
+}
+
+function ProfileModal({ open, onClose, children }: { open: boolean; onClose: () => void; children: ReactNode }) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/60 p-4 backdrop-blur-sm" onMouseDown={onClose}>
+      <div className="mx-auto my-8 max-w-5xl overflow-hidden rounded-lg border border-white/70 bg-white shadow-2xl" onMouseDown={(event) => event.stopPropagation()}>
+        <div className="flex items-center justify-between gap-4 border-b border-slate-200 bg-[linear-gradient(135deg,#ffffff,#eef7f6)] px-5 py-4">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-civic-700">Profile popup</p>
+            <h2 className="text-xl font-black text-ink-900">Edit profile</h2>
+          </div>
+          <button type="button" className="grid h-10 w-10 place-items-center rounded-md bg-slate-100 text-ink-700 hover:bg-slate-200" onClick={onClose} aria-label="Close profile popup">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="max-h-[78vh] overflow-y-auto bg-slate-50 p-5">{children}</div>
+      </div>
+    </div>
   );
 }
 
