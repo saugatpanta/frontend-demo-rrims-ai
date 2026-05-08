@@ -1,5 +1,6 @@
 import { createContext, PropsWithChildren, useContext, useEffect, useMemo, useState } from "react";
 
+import { authExpiredEvent, clearApiAuth } from "../api/client";
 import { authApi } from "../api/services";
 import type { User } from "../api/types";
 
@@ -27,17 +28,32 @@ export function AuthProvider({ children }: PropsWithChildren) {
       localStorage.setItem("rrims.user", JSON.stringify(me));
     } catch {
       setUser(null);
-      localStorage.removeItem("rrims.user");
+      clearApiAuth();
     }
   }
 
   useEffect(() => {
     const token = localStorage.getItem("rrims.accessToken");
     if (!token) {
+      setUser(null);
+      clearApiAuth();
       setLoading(false);
       return;
     }
     refreshUser().finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    function onAuthExpired() {
+      setUser(null);
+      clearApiAuth();
+      if (window.location.pathname.startsWith("/app")) {
+        window.location.assign("/login");
+      }
+    }
+
+    window.addEventListener(authExpiredEvent, onAuthExpired);
+    return () => window.removeEventListener(authExpiredEvent, onAuthExpired);
   }, []);
 
   async function login(identifier: string, password: string) {
@@ -55,7 +71,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       await authApi.logout();
     } finally {
       setUser(null);
-      localStorage.removeItem("rrims.user");
+      clearApiAuth();
     }
   }
 

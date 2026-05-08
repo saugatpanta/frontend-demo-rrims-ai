@@ -44,7 +44,7 @@ export function UsersPage() {
   const [message, setMessage] = useState("");
   const [refresh, setRefresh] = useState(0);
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
-  const users = useAsync(() => usersApi.list({ limit: 50, search, status, role }), [refresh]);
+  const users = useAsync(() => usersApi.list({ limit: 50, search, status, role }), [refresh, search, status, role]);
   const rows = users.data ? unwrapList<User>(users.data) : [];
   const isSuperAdmin = String(user?.role ?? "") === "SUPER_ADMIN";
 

@@ -38,6 +38,17 @@ export class ApiError extends Error {
 let accessToken = localStorage.getItem("rrims.accessToken") ?? "";
 let csrfToken = localStorage.getItem("rrims.csrfToken") ?? "";
 
+const authFailureCodes = new Set([
+  "UNAUTHORIZED",
+  "ACCOUNT_DISABLED",
+  "ACCOUNT_LOCKED",
+  "ACCOUNT_SUSPENDED",
+  "ACCOUNT_REJECTED",
+  "ACCOUNT_PENDING_VERIFICATION",
+]);
+
+export const authExpiredEvent = "rrims:auth-expired";
+
 export function getApiTokens() {
   return { accessToken, csrfToken };
 }
@@ -56,6 +67,28 @@ export function setApiTokens(tokens: { accessToken?: string; csrfToken?: string 
       ? localStorage.setItem("rrims.csrfToken", tokens.csrfToken)
       : localStorage.removeItem("rrims.csrfToken");
   }
+}
+
+export function clearApiAuth() {
+  setApiTokens({ accessToken: "", csrfToken: "" });
+  localStorage.removeItem("rrims.user");
+}
+
+function notifyAuthExpired(error: ApiError, skipAuth?: boolean) {
+  if (skipAuth) return;
+  if (error.status !== 401 && error.status !== 403 && error.status !== 423) return;
+  if (!authFailureCodes.has(error.code)) return;
+
+  clearApiAuth();
+  window.dispatchEvent(
+    new CustomEvent(authExpiredEvent, {
+      detail: {
+        code: error.code,
+        message: error.message,
+        status: error.status,
+      },
+    }),
+  );
 }
 
 function buildUrl(path: string, query?: Record<string, string | number | boolean | undefined | null>) {
@@ -105,12 +138,14 @@ export async function api<T>(
 
   if (!response.ok) {
     const envelope = payload as Partial<ApiEnvelope<unknown>>;
-    throw new ApiError(
+    const error = new ApiError(
       envelope.message ?? response.statusText,
       response.status,
       envelope.code,
       envelope.details,
     );
+    notifyAuthExpired(error, options.skipAuth);
+    throw error;
   }
 
   const envelope = payload as ApiEnvelope<T>;

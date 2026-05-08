@@ -1,4 +1,4 @@
-import { api, Paginated, setApiTokens } from "./client";
+import { api, clearApiAuth, Paginated, setApiTokens } from "./client";
 import type { DashboardStats, Report, SelectOption, User, WorkOrder } from "./types";
 
 type LoginResponse = {
@@ -70,8 +70,11 @@ export const authApi = {
     return data;
   },
   async logout() {
-    await api("/auth/logout", { method: "POST" });
-    setApiTokens({ accessToken: "", csrfToken: "" });
+    try {
+      await api("/auth/logout", { method: "POST" });
+    } finally {
+      clearApiAuth();
+    }
   },
   sessions: () => api<unknown[]>("/auth/sessions"),
   revokeSession: (sessionId: string) => api(`/auth/sessions/${sessionId}`, { method: "DELETE" }),
