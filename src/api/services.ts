@@ -4,8 +4,10 @@ import type { DashboardStats, Report, SelectOption, User, WorkOrder } from "./ty
 type LoginResponse = {
   user?: User;
   accessToken?: string;
+  token?: { accessToken?: string } | string;
+  csrfToken?: string;
+  tokenValue?: string;
   auth?: { accessToken?: string; csrf?: { token?: string } };
-  token?: { accessToken?: string };
   tokens?: {
     accessToken?: string;
     tokenType?: string;
@@ -65,8 +67,8 @@ export const authApi = {
     return api<User>("/auth/me");
   },
   async csrf() {
-    const data = await api<{ token?: string; csrfToken?: string }>("/auth/csrf-token", { skipAuth: true });
-    setApiTokens({ csrfToken: data.token ?? data.csrfToken ?? "" });
+    const data = await api<LoginResponse>("/auth/csrf-token", { skipAuth: true });
+    setApiTokens({ csrfToken: extractCsrfToken(data) });
     return data;
   },
   async refresh() {
@@ -130,19 +132,30 @@ function applyAuthResponse(data: LoginResponse) {
     data.tokens?.accessToken ??
     data.accessToken ??
     data.auth?.accessToken ??
-    data.token?.accessToken ??
+    (typeof data.token === "object" ? data.token.accessToken : undefined) ??
     "";
-  const csrfToken =
-    data.security?.csrf?.token ?? data.session?.csrf?.token ?? data.auth?.csrf?.token ?? "";
-  if (!accessToken) {
+  const csrfToken = extractCsrfToken(data);
+  if (!accessToken && !data.user) {
     throw new Error(
       data.verificationRequired
         ? "Account verification is required before access is granted."
         : "Login succeeded but the backend did not return an access token.",
     );
   }
-  setApiTokens({ accessToken, csrfToken });
+  setApiTokens({ csrfToken });
   return { user: data.user, accessToken, csrfToken, raw: data };
+}
+
+function extractCsrfToken(data: LoginResponse) {
+  return (
+    data.security?.csrf?.token ??
+    data.session?.csrf?.token ??
+    data.auth?.csrf?.token ??
+    data.csrfToken ??
+    data.tokenValue ??
+    (typeof data.token === "string" ? data.token : undefined) ??
+    ""
+  );
 }
 
 export const settingsApi = {

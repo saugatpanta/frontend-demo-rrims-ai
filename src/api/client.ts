@@ -1,6 +1,7 @@
 const API_BASE_URL = (
   import.meta.env.VITE_API_BASE_URL ?? "https://pantasaugat.com.np/api/v1"
 ).replace(/\/$/, "");
+const CSRF_COOKIE_NAME = import.meta.env.VITE_CSRF_COOKIE_NAME ?? "rrims_csrf";
 
 export type ApiEnvelope<T> = {
   success: boolean;
@@ -35,9 +36,6 @@ export class ApiError extends Error {
   }
 }
 
-let accessToken = "";
-let csrfToken = "";
-
 const authFailureCodes = new Set([
   "UNAUTHORIZED",
   "ACCOUNT_DISABLED",
@@ -50,21 +48,14 @@ const authFailureCodes = new Set([
 export const authExpiredEvent = "rrims:auth-expired";
 
 export function getApiTokens() {
-  return { accessToken, csrfToken };
+  return { accessToken: "", csrfToken: getCookie(CSRF_COOKIE_NAME) };
 }
 
 export function setApiTokens(tokens: { accessToken?: string; csrfToken?: string }) {
-  if (tokens.accessToken !== undefined) {
-    accessToken = tokens.accessToken;
-  }
-
-  if (tokens.csrfToken !== undefined) {
-    csrfToken = tokens.csrfToken;
-  }
+  void tokens;
 }
 
 export function clearApiAuth() {
-  setApiTokens({ accessToken: "", csrfToken: "" });
   localStorage.removeItem("rrims.accessToken");
   localStorage.removeItem("rrims.csrfToken");
   localStorage.removeItem("rrims.user");
@@ -97,6 +88,16 @@ function buildUrl(path: string, query?: Record<string, string | number | boolean
   return url.toString();
 }
 
+function getCookie(name: string) {
+  const prefix = `${name}=`;
+  const match = document.cookie
+    .split(";")
+    .map((item) => item.trim())
+    .find((item) => item.startsWith(prefix));
+  if (!match) return "";
+  return decodeURIComponent(match.slice(prefix.length));
+}
+
 export function buildApiUrl(path: string, query?: Record<string, string | number | boolean | undefined | null>) {
   return buildUrl(path, query);
 }
@@ -115,10 +116,7 @@ export async function api<T>(
     headers.set("Content-Type", "application/json");
   }
 
-  if (!options.skipAuth && accessToken) {
-    headers.set("Authorization", `Bearer ${accessToken}`);
-  }
-
+  const csrfToken = getCookie(CSRF_COOKIE_NAME);
   if (csrfToken && ["POST", "PATCH", "PUT", "DELETE"].includes((options.method ?? "GET").toUpperCase())) {
     headers.set("x-csrf-token", csrfToken);
   }
