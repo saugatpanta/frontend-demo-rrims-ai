@@ -65,9 +65,18 @@ export const authApi = {
     return api<User>("/auth/me");
   },
   async csrf() {
-    const data = await api<{ token?: string; csrfToken?: string }>("/csrf", { skipAuth: true });
+    const data = await api<{ token?: string; csrfToken?: string }>("/auth/csrf-token", { skipAuth: true });
     setApiTokens({ csrfToken: data.token ?? data.csrfToken ?? "" });
     return data;
+  },
+  async refresh() {
+    await this.csrf();
+    const data = await api<LoginResponse>("/auth/refresh", {
+      method: "POST",
+      skipAuth: true,
+      body: JSON.stringify({}),
+    });
+    return applyAuthResponse(data);
   },
   async logout() {
     try {
@@ -163,10 +172,11 @@ export const notificationsApi = {
 
 function getDeviceFingerprint() {
   const key = "rrims.deviceFingerprint";
-  const existing = localStorage.getItem(key);
+  const existing = sessionStorage.getItem(key);
   if (existing) return existing;
+  localStorage.removeItem(key);
   const generated = `web-${crypto.randomUUID()}-${navigator.userAgent.slice(0, 48)}`;
-  localStorage.setItem(key, generated);
+  sessionStorage.setItem(key, generated);
   return generated;
 }
 

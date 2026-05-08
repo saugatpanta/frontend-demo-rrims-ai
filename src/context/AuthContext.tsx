@@ -15,17 +15,13 @@ type AuthState = {
 const AuthContext = createContext<AuthState | null>(null);
 
 export function AuthProvider({ children }: PropsWithChildren) {
-  const [user, setUser] = useState<User | null>(() => {
-    const stored = localStorage.getItem("rrims.user");
-    return stored ? (JSON.parse(stored) as User) : null;
-  });
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   async function refreshUser() {
     try {
       const me = await authApi.me();
       setUser(me);
-      localStorage.setItem("rrims.user", JSON.stringify(me));
     } catch {
       setUser(null);
       clearApiAuth();
@@ -33,14 +29,23 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }
 
   useEffect(() => {
-    const token = localStorage.getItem("rrims.accessToken");
-    if (!token) {
-      setUser(null);
-      clearApiAuth();
-      setLoading(false);
-      return;
+    async function restoreSession() {
+      try {
+        const result = await authApi.refresh();
+        if (result.user) {
+          setUser(result.user);
+          return;
+        }
+        await refreshUser();
+      } catch {
+        setUser(null);
+        clearApiAuth();
+      } finally {
+        setLoading(false);
+      }
     }
-    refreshUser().finally(() => setLoading(false));
+
+    restoreSession();
   }, []);
 
   useEffect(() => {
@@ -60,7 +65,6 @@ export function AuthProvider({ children }: PropsWithChildren) {
     const result = await authApi.login(identifier, password);
     if (result.user) {
       setUser(result.user);
-      localStorage.setItem("rrims.user", JSON.stringify(result.user));
       return;
     }
     await refreshUser();

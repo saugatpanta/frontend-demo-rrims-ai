@@ -35,8 +35,8 @@ export class ApiError extends Error {
   }
 }
 
-let accessToken = localStorage.getItem("rrims.accessToken") ?? "";
-let csrfToken = localStorage.getItem("rrims.csrfToken") ?? "";
+let accessToken = "";
+let csrfToken = "";
 
 const authFailureCodes = new Set([
   "UNAUTHORIZED",
@@ -56,21 +56,17 @@ export function getApiTokens() {
 export function setApiTokens(tokens: { accessToken?: string; csrfToken?: string }) {
   if (tokens.accessToken !== undefined) {
     accessToken = tokens.accessToken;
-    tokens.accessToken
-      ? localStorage.setItem("rrims.accessToken", tokens.accessToken)
-      : localStorage.removeItem("rrims.accessToken");
   }
 
   if (tokens.csrfToken !== undefined) {
     csrfToken = tokens.csrfToken;
-    tokens.csrfToken
-      ? localStorage.setItem("rrims.csrfToken", tokens.csrfToken)
-      : localStorage.removeItem("rrims.csrfToken");
   }
 }
 
 export function clearApiAuth() {
   setApiTokens({ accessToken: "", csrfToken: "" });
+  localStorage.removeItem("rrims.accessToken");
+  localStorage.removeItem("rrims.csrfToken");
   localStorage.removeItem("rrims.user");
 }
 
