@@ -17,6 +17,15 @@ type LoginResponse = {
   verificationRequired?: boolean;
 };
 
+export type MfaChallenge = {
+  challengeId: string;
+  challengeToken: string;
+  methods: Array<"TOTP" | "BACKUP_CODE">;
+  attemptsRemaining?: number;
+  rememberDeviceAllowed?: boolean;
+  expiresAt?: string;
+};
+
 function extractItems<T>(value: unknown): T[] {
   if (Array.isArray(value)) return value as T[];
   if (value && typeof value === "object" && "items" in value) {
@@ -36,23 +45,21 @@ export const authApi = {
         deviceFingerprint: getDeviceFingerprint(),
       }),
     });
-    const accessToken =
-      data.tokens?.accessToken ??
-      data.accessToken ??
-      data.auth?.accessToken ??
-      data.token?.accessToken ??
-      "";
-    const csrfToken =
-      data.security?.csrf?.token ?? data.session?.csrf?.token ?? data.auth?.csrf?.token ?? "";
-    if (!accessToken) {
-      throw new Error(
-        data.verificationRequired
-          ? "Account verification is required before access is granted."
-          : "Login succeeded but the backend did not return an access token.",
-      );
-    }
-    setApiTokens({ accessToken, csrfToken });
-    return { user: data.user, accessToken, csrfToken, raw: data };
+    return applyAuthResponse(data);
+  },
+  async verifyChallenge(body: {
+    challengeId: string;
+    challengeToken: string;
+    method: "TOTP" | "BACKUP_CODE";
+    code: string;
+    rememberDevice?: boolean;
+  }) {
+    const data = await api<LoginResponse>("/auth/challenge/verify", {
+      method: "POST",
+      skipAuth: true,
+      body: JSON.stringify(body),
+    });
+    return applyAuthResponse(data);
   },
   async me() {
     return api<User>("/auth/me");
@@ -105,6 +112,26 @@ export const authApi = {
     });
   },
 };
+
+function applyAuthResponse(data: LoginResponse) {
+  const accessToken =
+    data.tokens?.accessToken ??
+    data.accessToken ??
+    data.auth?.accessToken ??
+    data.token?.accessToken ??
+    "";
+  const csrfToken =
+    data.security?.csrf?.token ?? data.session?.csrf?.token ?? data.auth?.csrf?.token ?? "";
+  if (!accessToken) {
+    throw new Error(
+      data.verificationRequired
+        ? "Account verification is required before access is granted."
+        : "Login succeeded but the backend did not return an access token.",
+    );
+  }
+  setApiTokens({ accessToken, csrfToken });
+  return { user: data.user, accessToken, csrfToken, raw: data };
+}
 
 export const settingsApi = {
   notificationPreferences: () => api<Record<string, unknown>>("/notification-preferences"),

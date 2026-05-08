@@ -112,6 +112,12 @@ export function PublicPortalPage() {
               </div>
             </div>
           </div>
+          <div className="relative mb-8 grid gap-px overflow-hidden rounded-lg border border-white/15 bg-white/15 backdrop-blur md:grid-cols-4">
+            <PublicSignal label="Portal status" value="Live" />
+            <PublicSignal label="API surface" value="342 endpoints" />
+            <PublicSignal label="Evidence" value="Photo, video, files" />
+            <PublicSignal label="Access" value="Citizen + operator" />
+          </div>
         </div>
       </section>
 
@@ -151,6 +157,15 @@ export function PublicPortalPage() {
         </Panel>
       </section>
     </main>
+  );
+}
+
+function PublicSignal({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="bg-slate-950/35 p-4">
+      <p className="text-xs font-black uppercase tracking-[0.14em] text-civic-100">{label}</p>
+      <p className="mt-1 text-base font-black text-white">{value}</p>
+    </div>
   );
 }
 

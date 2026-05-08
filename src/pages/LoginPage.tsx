@@ -1,11 +1,11 @@
-import { AlertCircle, ArrowLeft, CheckCircle2, KeyRound, Lock, Mail, PlayCircle, ShieldCheck, UserRound } from "lucide-react";
+import { AlertCircle, ArrowLeft, CheckCircle2, KeyRound, Lock, Mail, PlayCircle, ShieldCheck, Smartphone, UserRound } from "lucide-react";
 import type { ReactNode } from "react";
 import { FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { Button, Field, inputClass, Panel } from "../components/ui";
 import { useAuth } from "../context/AuthContext";
-import { authApi } from "../api/services";
+import { authApi, type MfaChallenge } from "../api/services";
 
 const demoPassword = import.meta.env.VITE_DEMO_PASSWORD ?? "Test@12345";
 const demoAccounts = [
@@ -25,8 +25,12 @@ export function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [mode, setMode] = useState<"login" | "forgot">("login");
-  const { login } = useAuth();
+  const [mode, setMode] = useState<"login" | "forgot" | "mfa">("login");
+  const [challenge, setChallenge] = useState<MfaChallenge | null>(null);
+  const [mfaCode, setMfaCode] = useState("");
+  const [mfaMethod, setMfaMethod] = useState<"TOTP" | "BACKUP_CODE">("TOTP");
+  const [rememberDevice, setRememberDevice] = useState(true);
+  const { login, refreshUser } = useAuth();
   const navigate = useNavigate();
 
   async function handleSubmit(event: FormEvent) {
@@ -38,13 +42,38 @@ export function LoginPage() {
       navigate("/app");
     } catch (caught) {
       const code = caught && typeof caught === "object" && "code" in caught ? String((caught as { code?: unknown }).code) : "";
-      setError(
-        code === "MFA_CHALLENGE_REQUIRED"
-          ? "Additional verification is required. Complete MFA to continue."
-          : caught instanceof Error
-            ? caught.message
-            : "Could not sign in.",
-      );
+      const nextChallenge = getMfaChallenge(caught);
+      if (code === "MFA_CHALLENGE_REQUIRED" && nextChallenge) {
+        setChallenge(nextChallenge);
+        setMfaMethod(nextChallenge.methods.includes("TOTP") ? "TOTP" : nextChallenge.methods[0] ?? "TOTP");
+        setRememberDevice(Boolean(nextChallenge.rememberDeviceAllowed));
+        setMode("mfa");
+        setError("Additional verification is required. Complete MFA to continue.");
+      } else {
+        setError(caught instanceof Error ? caught.message : "Could not sign in.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function verifyMfa(event: FormEvent) {
+    event.preventDefault();
+    if (!challenge) return;
+    setError("");
+    setLoading(true);
+    try {
+      await authApi.verifyChallenge({
+        challengeId: challenge.challengeId,
+        challengeToken: challenge.challengeToken,
+        method: mfaMethod,
+        code: mfaCode.trim(),
+        rememberDevice: rememberDevice && mfaMethod === "TOTP",
+      });
+      await refreshUser();
+      navigate("/app");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not verify MFA.");
     } finally {
       setLoading(false);
     }
@@ -57,9 +86,9 @@ export function LoginPage() {
   }
 
   return (
-    <main className="grid min-h-screen bg-slate-100 lg:grid-cols-[1.05fr_0.95fr]">
-      <section className="relative flex min-h-[42vh] flex-col justify-between overflow-hidden bg-[url('https://images.unsplash.com/photo-1544735716-392fe2489ffa?auto=format&fit=crop&w=1400&q=80')] bg-cover bg-center p-6 text-white lg:min-h-screen lg:p-10">
-        <div className="absolute inset-0 bg-slate-950/45" />
+    <main className="grid min-h-screen bg-slate-100 lg:grid-cols-[1.08fr_0.92fr]">
+      <section className="relative flex min-h-[42vh] flex-col justify-between overflow-hidden bg-[url('https://images.unsplash.com/photo-1544735716-392fe2489ffa?auto=format&fit=crop&w=1600&q=85')] bg-cover bg-center p-6 text-white lg:min-h-screen lg:p-10">
+        <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(8,17,31,0.82),rgba(15,118,110,0.58)_52%,rgba(18,58,111,0.74))]" />
         <div className="absolute inset-0 surface-grid opacity-20" />
         <div className="relative">
         <Link to="/" className="inline-flex w-max items-center gap-2 rounded-md bg-white/15 px-3 py-2 text-sm font-semibold backdrop-blur">
@@ -79,27 +108,16 @@ export function LoginPage() {
             <TrustPill icon={<KeyRound className="h-4 w-4" />} label="Audited access" />
             <TrustPill icon={<CheckCircle2 className="h-4 w-4" />} label="Role scoped" />
           </div>
+          <div className="mt-8 grid gap-3 sm:grid-cols-3">
+            <HeroMetric label="Live modules" value="342" />
+            <HeroMetric label="Evidence" value="Media" />
+            <HeroMetric label="Security" value="AAL2" />
+          </div>
         </div>
       </section>
 
       <section className="flex flex-col items-center justify-center p-4 sm:p-8">
         <Panel className="w-full max-w-md overflow-hidden p-0">
-          <div className="grid grid-cols-2 border-b border-slate-200 bg-slate-50">
-            <button
-              type="button"
-              className={`px-4 py-3 text-sm font-black ${mode === "login" ? "bg-white text-civic-800" : "text-ink-500 hover:text-ink-900"}`}
-              onClick={() => setMode("login")}
-            >
-              Sign in
-            </button>
-            <button
-              type="button"
-              className={`px-4 py-3 text-sm font-black ${mode === "forgot" ? "bg-white text-civic-800" : "text-ink-500 hover:text-ink-900"}`}
-              onClick={() => setMode("forgot")}
-            >
-              Forgot password
-            </button>
-          </div>
           <div className="p-6">
           {mode === "login" ? (
             <>
@@ -142,6 +160,25 @@ export function LoginPage() {
             </Link>
           </p>
             </>
+          ) : mode === "mfa" ? (
+            <MfaPanel
+              challenge={challenge}
+              code={mfaCode}
+              method={mfaMethod}
+              rememberDevice={rememberDevice}
+              loading={loading}
+              error={error}
+              onCode={setMfaCode}
+              onMethod={setMfaMethod}
+              onRemember={setRememberDevice}
+              onSubmit={verifyMfa}
+              onBack={() => {
+                setMode("login");
+                setChallenge(null);
+                setMfaCode("");
+                setError("");
+              }}
+            />
           ) : (
             <ForgotPasswordPanel onBack={() => setMode("login")} />
           )}
@@ -185,6 +222,99 @@ function TrustPill({ icon, label }: { icon: ReactNode; label: string }) {
       {label}
     </div>
   );
+}
+
+function HeroMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-white/15 bg-white/10 p-3 backdrop-blur">
+      <p className="text-xs font-black uppercase tracking-[0.14em] text-civic-100">{label}</p>
+      <p className="mt-1 text-2xl font-black text-white">{value}</p>
+    </div>
+  );
+}
+
+function MfaPanel({
+  challenge,
+  code,
+  method,
+  rememberDevice,
+  loading,
+  error,
+  onCode,
+  onMethod,
+  onRemember,
+  onSubmit,
+  onBack,
+}: {
+  challenge: MfaChallenge | null;
+  code: string;
+  method: "TOTP" | "BACKUP_CODE";
+  rememberDevice: boolean;
+  loading: boolean;
+  error: string;
+  onCode: (value: string) => void;
+  onMethod: (value: "TOTP" | "BACKUP_CODE") => void;
+  onRemember: (value: boolean) => void;
+  onSubmit: (event: FormEvent) => void;
+  onBack: () => void;
+}) {
+  return (
+    <div>
+      <div className="mb-6">
+        <p className="text-sm font-semibold uppercase tracking-wide text-civic-700">Step 2 of 2</p>
+        <h2 className="mt-1 text-2xl font-bold text-ink-900">Additional verification is required.</h2>
+        <p className="mt-2 text-sm leading-6 text-ink-500">Enter your authenticator code or backup code to finish signing in.</p>
+      </div>
+      {error ? (
+        <div className="mb-4 flex gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-800">
+          <Smartphone className="mt-0.5 h-4 w-4 shrink-0" />
+          {error}
+        </div>
+      ) : null}
+      <form onSubmit={onSubmit} className="space-y-4">
+        <Field label="Verification method">
+          <select className={inputClass} value={method} onChange={(event) => onMethod(event.target.value as "TOTP" | "BACKUP_CODE")}>
+            {(challenge?.methods ?? ["TOTP"]).map((item) => (
+              <option key={item} value={item}>{item === "BACKUP_CODE" ? "Backup code" : "Authenticator app"}</option>
+            ))}
+          </select>
+        </Field>
+        <Field label={method === "BACKUP_CODE" ? "Backup code" : "6-digit authenticator code"}>
+          <input className={inputClass} value={code} onChange={(event) => onCode(event.target.value)} required minLength={6} autoFocus />
+        </Field>
+        {challenge?.rememberDeviceAllowed && method === "TOTP" ? (
+          <label className="flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <input className="mt-1 h-4 w-4 accent-civic-700" type="checkbox" checked={rememberDevice} onChange={(event) => onRemember(event.target.checked)} />
+            <span>
+              <span className="block text-sm font-black text-ink-900">Remember this device</span>
+              <span className="text-sm text-ink-500">Allowed by backend MFA policy for this challenge.</span>
+            </span>
+          </label>
+        ) : null}
+        <Button type="submit" className="w-full" loading={loading}>Complete verification</Button>
+        <Button type="button" variant="secondary" className="w-full" onClick={onBack}>Back to sign in</Button>
+      </form>
+    </div>
+  );
+}
+
+function getMfaChallenge(error: unknown): MfaChallenge | null {
+  if (!error || typeof error !== "object" || !("details" in error)) return null;
+  const details = (error as { details?: unknown }).details;
+  const challenge = details && typeof details === "object" && "challenge" in details
+    ? (details as { challenge?: unknown }).challenge
+    : details;
+  if (!challenge || typeof challenge !== "object") return null;
+  const value = challenge as Partial<MfaChallenge>;
+  if (!value.challengeId || !value.challengeToken) return null;
+  return {
+    challengeId: String(value.challengeId),
+    challengeToken: String(value.challengeToken),
+    methods: Array.isArray(value.methods) ? value.methods : ["TOTP"],
+    attemptsRemaining: value.attemptsRemaining,
+    rememberDeviceAllowed: Boolean(value.rememberDeviceAllowed),
+    expiresAt: value.expiresAt,
+  };
 }
 
 function ForgotPasswordPanel({ onBack }: { onBack: () => void }) {

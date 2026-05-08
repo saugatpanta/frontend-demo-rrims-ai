@@ -40,7 +40,7 @@ export function Panel({ children, className }: PropsWithChildren<{ className?: s
   return (
     <section
       className={clsx(
-        "rounded-lg border border-white/70 bg-white/[0.92] p-5 shadow-[0_1px_2px_rgba(15,23,42,0.05),0_18px_44px_rgba(15,23,42,0.08)] ring-1 ring-slate-900/[0.025]",
+        "rounded-lg border border-white/70 bg-white/[0.92] p-6 shadow-[0_1px_2px_rgba(15,23,42,0.05),0_18px_44px_rgba(15,23,42,0.08)] ring-1 ring-slate-900/[0.025]",
         "backdrop-blur transition duration-200",
         className,
       )}

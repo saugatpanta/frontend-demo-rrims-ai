@@ -78,9 +78,9 @@ export function SettingsPage() {
           onOpen={() => setActivePanel("mfa")}
         />
         <SettingsCard
-          title="Password security"
+          title="Change password"
           eyebrow="Credentials"
-          body="Change the account password using protected backend auth endpoints."
+          body="Update only your password in a separate protected section."
           icon={<KeyRound className="h-5 w-5" />}
           tone="blue"
           status="Protected"
@@ -186,7 +186,7 @@ type SettingsPanelKey = "mfa" | "password" | "sessions" | "notifications" | "per
 function modalTitle(key: SettingsPanelKey | null) {
   const titles: Record<SettingsPanelKey, string> = {
     mfa: "Multi-factor authentication",
-    password: "Password security",
+    password: "Change password",
     sessions: "Active sessions",
     notifications: "Notification policy",
     permissions: "System permissions",
@@ -522,9 +522,14 @@ function PasswordPanel({ setMessage }: { setMessage: (message: string) => void }
   }
   return (
     <Panel>
-      <div className="mb-5 flex items-center gap-3">
-        <KeyRound className="h-5 w-5 text-civic-700" />
-        <h2 className="text-xl font-black text-ink-900">Password security</h2>
+      <div className="mb-5 flex items-center gap-3 rounded-lg border border-civic-100 bg-civic-50/70 p-4">
+        <span className="grid h-10 w-10 place-items-center rounded-md bg-white text-civic-700 ring-1 ring-civic-100">
+          <KeyRound className="h-5 w-5" />
+        </span>
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-civic-700">Separate section</p>
+          <h2 className="text-xl font-black text-ink-900">Change password</h2>
+        </div>
       </div>
       <form onSubmit={submit} className="grid gap-4 md:grid-cols-3">
         <Field label="Current password"><input className={inputClass} type="password" value={form.currentPassword} onChange={(event) => setForm({ ...form, currentPassword: event.target.value })} /></Field>

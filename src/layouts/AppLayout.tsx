@@ -258,8 +258,8 @@ export function AppLayout({ children }: PropsWithChildren) {
           </div>
         </header>
 
-        <main className="mx-auto max-w-[1480px] p-4 lg:p-8">
-          <section className="mb-5 overflow-hidden rounded-lg border border-white/70 bg-white/[0.86] shadow-[0_1px_2px_rgba(15,23,42,0.05),0_18px_48px_rgba(15,23,42,0.08)] ring-1 ring-slate-900/[0.03] backdrop-blur">
+        <main className="mx-auto max-w-[1480px] space-y-6 p-5 lg:p-9">
+          <section className="overflow-hidden rounded-lg border border-white/70 bg-white/[0.86] shadow-[0_1px_2px_rgba(15,23,42,0.05),0_18px_48px_rgba(15,23,42,0.08)] ring-1 ring-slate-900/[0.03] backdrop-blur">
             <div className="grid gap-px bg-slate-200/70 md:grid-cols-3">
               <div className="bg-white/90 p-4">
                 <div className="flex items-center gap-3">
@@ -296,7 +296,7 @@ export function AppLayout({ children }: PropsWithChildren) {
               </div>
             </div>
           </section>
-          {children}
+          <div>{children}</div>
         </main>
       </div>
       {commandOpen ? (
