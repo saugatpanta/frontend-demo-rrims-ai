@@ -50,7 +50,7 @@ export function LoginPage() {
         setMode("mfa");
         setError("Additional verification is required. Complete MFA to continue.");
       } else {
-        setError(caught instanceof Error ? caught.message : "Could not sign in.");
+        setError(formatAuthError(caught, "Could not sign in."));
       }
     } finally {
       setLoading(false);
@@ -73,7 +73,7 @@ export function LoginPage() {
       await refreshUser();
       navigate("/app");
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Could not verify MFA.");
+      setError(formatAuthError(caught, "Could not verify MFA."));
     } finally {
       setLoading(false);
     }
@@ -315,6 +315,17 @@ function getMfaChallenge(error: unknown): MfaChallenge | null {
     rememberDeviceAllowed: Boolean(value.rememberDeviceAllowed),
     expiresAt: value.expiresAt,
   };
+}
+
+function formatAuthError(error: unknown, fallback: string) {
+  if (!(error instanceof Error)) return fallback;
+
+  const code =
+    error && typeof error === "object" && "code" in error
+      ? String((error as { code?: unknown }).code)
+      : "";
+
+  return code ? `${error.message} (${code})` : error.message;
 }
 
 function ForgotPasswordPanel({ onBack }: { onBack: () => void }) {

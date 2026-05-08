@@ -142,7 +142,7 @@ function applyAuthResponse(data: LoginResponse) {
         : "Login succeeded but the backend did not return an access token.",
     );
   }
-  setApiTokens({ csrfToken });
+  setApiTokens({ accessToken, csrfToken });
   return { user: data.user, accessToken, csrfToken, raw: data };
 }
 
