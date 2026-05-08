@@ -72,7 +72,6 @@ export const authApi = {
     return data;
   },
   async refresh() {
-    await this.csrf();
     const data = await api<LoginResponse>("/auth/refresh", {
       method: "POST",
       skipAuth: true,

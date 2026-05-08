@@ -75,6 +75,11 @@ export function clearApiAuth() {
   localStorage.removeItem("rrims.user");
 }
 
+function clearCsrfToken() {
+  csrfHeaderToken = "";
+  localStorage.removeItem(CSRF_TOKEN_STORAGE_KEY);
+}
+
 function notifyAuthExpired(error: ApiError, skipAuth?: boolean) {
   if (skipAuth) return;
   if (error.status !== 401 && error.status !== 403 && error.status !== 423) return;
@@ -147,9 +152,9 @@ function extractCsrfToken(payload: unknown): string {
   return typeof token === "string" ? token : "";
 }
 
-async function ensureCsrfToken() {
+async function ensureCsrfToken(forceRefresh = false) {
   const existingToken = getApiTokens().csrfToken;
-  if (existingToken) return existingToken;
+  if (existingToken && !forceRefresh) return existingToken;
   if (csrfTokenRequest) return csrfTokenRequest;
 
   csrfTokenRequest = fetch(buildUrl("/auth/csrf-token"), {
@@ -189,8 +194,10 @@ export async function api<T>(
   options: RequestInit & {
     query?: Record<string, string | number | boolean | undefined | null>;
     skipAuth?: boolean;
+    retryingAfterCsrfRefresh?: boolean;
   } = {},
 ): Promise<T> {
+  const { retryingAfterCsrfRefresh, ...requestOptions } = options;
   const headers = new Headers(options.headers);
   const hasBody = options.body !== undefined && !(options.body instanceof FormData);
   const method = (options.method ?? "GET").toUpperCase();
@@ -200,7 +207,7 @@ export async function api<T>(
   }
 
   if (isUnsafeMethod(method) && path !== "/auth/csrf-token" && path !== "/auth/csrf") {
-    const csrfToken = await ensureCsrfToken();
+    const csrfToken = await ensureCsrfToken(path === "/auth/refresh");
     if (!headers.has("x-csrf-token")) {
       headers.set("x-csrf-token", csrfToken);
     }
@@ -216,7 +223,7 @@ export async function api<T>(
   }
 
   const response = await fetch(buildUrl(path, options.query), {
-    ...options,
+    ...requestOptions,
     headers,
     credentials: "include",
   });
@@ -232,11 +239,36 @@ export async function api<T>(
       envelope.code,
       envelope.details,
     );
+    if (
+      isUnsafeMethod(method) &&
+      !retryingAfterCsrfRefresh &&
+      (error.code === "CSRF_TOKEN_INVALID" || error.code === "CSRF_TOKEN_MISSING")
+    ) {
+      clearCsrfToken();
+      const csrfToken = await ensureCsrfToken(true);
+      const retryHeaders = new Headers(options.headers);
+      if (hasBody && !retryHeaders.has("Content-Type")) {
+        retryHeaders.set("Content-Type", "application/json");
+      }
+      retryHeaders.set("x-csrf-token", csrfToken);
+      if (accessToken && !options.skipAuth && !retryHeaders.has("Authorization")) {
+        retryHeaders.set("Authorization", `Bearer ${accessToken}`);
+      }
+      return api<T>(path, {
+        ...options,
+        headers: retryHeaders,
+        retryingAfterCsrfRefresh: true,
+      });
+    }
     notifyAuthExpired(error, options.skipAuth);
     throw error;
   }
 
   const envelope = payload as ApiEnvelope<T>;
+  const nextCsrfToken = extractCsrfToken(payload);
+  if (nextCsrfToken) {
+    setApiTokens({ csrfToken: nextCsrfToken });
+  }
   return envelope && "data" in envelope ? envelope.data : (payload as T);
 }
 
